@@ -3,7 +3,7 @@
 module Main (main) where
 
 import           Control.Concurrent (threadDelay)
-import           Control.Monad (void, forever, unless)
+import           Control.Monad (when, void, forever, unless)
 import qualified Data.ByteString.Lazy as BL
 import           Data.String (IsString(..))
 import           Data.Text (Text)
@@ -22,7 +22,6 @@ import           System.Directory
   ( doesDirectoryExist, withCurrentDirectory, createDirectoryIfMissing
   , removeDirectoryRecursive )
 import           System.Exit (exitSuccess, exitFailure, ExitCode(..))
-import           System.Posix.Signals (sigINT, Handler(..), installHandler)
 import           System.Process.Typed (setDelegateCtlc, readProcess, proc)
 
 import Config
@@ -93,9 +92,11 @@ setupRootDir = do
 setupGitRepo :: IO ()
 setupGitRepo = do
   workDirExists <- doesDirectoryExist _WORKDIR
-  unless workDirExists $ do
-    logInfo $ "cloning mathlib in " <> TL.pack _WORKDIR
-    cmd_ "git" ["clone", _MATHLIB_GIT_URL, _WORKDIR]
+  when workDirExists $ do
+    logInfo $ "removing old work directory " <> TL.pack _WORKDIR
+    removeDirectoryRecursive _WORKDIR
+  logInfo $ "cloning mathlib in " <> TL.pack _WORKDIR
+  cmd_ "git" ["clone", _MATHLIB_GIT_URL, _WORKDIR]
 
 setupDb :: IO ()
 setupDb = do
@@ -139,17 +140,9 @@ writeTiming :: CommitHash -> ElapsedTimeMillis -> IO ()
 writeTiming commit time = withConnection _SQLITE_FILE $ \conn ->
   execute conn "INSERT INTO timings (commit_hash, elapsed_millis) VALUES (?, ?)" (commit, time)
 
-shutdownHandler :: IO ()
-shutdownHandler = do
-  logInfo "mathlib-bench shutting down"
-  logInfo $ "removing " <> TL.pack _WORKDIR
-  removeDirectoryRecursive _WORKDIR
-  exitSuccess
-
 main :: IO ()
 main = do
   logInfo "====== mathlib-bench starting ======"
-  void $ installHandler sigINT (Catch shutdownHandler) Nothing
   setupRootDir
   setupDb
   setupGitRepo
