@@ -13,7 +13,6 @@ ProtectSystem=full
 NoNewPrivileges=true
 ProtectKernelTunables=true
 ProtectKernelModules=true
-ProtectKernelLogs=true
 ProtectControlGroups=true
 MemoryDenyWriteExecute=true
 RestrictSUIDSGID=true
