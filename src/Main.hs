@@ -5,6 +5,7 @@ import Config
 import Control.Concurrent (threadDelay)
 import Control.Monad (forever, unless)
 import qualified Data.ByteString.Lazy as BL
+import Data.String (IsString(..))
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -65,7 +66,11 @@ setupGitRepo = do
 
 setupDb :: IO ()
 setupDb = withConnection _SQLITE_FILE $ \conn -> do
-  execute_ conn "CREATE TABLE IF NOT EXISTS timings (id INTEGER PRIMARY KEY, commit_hash TEXT, elapsed_millis INTEGER)"
+  execute_ conn $ fromString $ unwords
+    [ "CREATE TABLE IF NOT EXISTS timings ("
+    , "id INTEGER PRIMARY KEY,"
+    , "commit_hash TEXT NOT NULL,"
+    , "elapsed_millis INTEGER NOT NULL )" ]
 
 getHeadCommit :: IO CommitHash
 getHeadCommit = withCurrentDirectory _WORKDIR $ do
