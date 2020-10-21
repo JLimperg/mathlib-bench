@@ -1,6 +1,5 @@
 [Unit]
 Description=Mathlib benchmarker
-AssertPathExists=/home/mathlib-bench/root
 
 [Service]
 Type=simple
