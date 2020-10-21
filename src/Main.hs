@@ -22,7 +22,7 @@ import           System.Directory
   ( doesDirectoryExist, withCurrentDirectory, createDirectoryIfMissing
   , removeDirectoryRecursive )
 import           System.Exit (exitSuccess, exitFailure, ExitCode(..))
-import           System.Process.Typed (setDelegateCtlc, readProcess, proc)
+import           System.Process.Typed (readProcess, proc)
 
 import Config
 import Logging
@@ -63,8 +63,7 @@ instance ToRow Timing where
 
 cmd :: String -> [String] -> IO (BL.ByteString, BL.ByteString)
 cmd prog args = do
-  let procSpec = setDelegateCtlc True $ proc prog args
-  (exitcode, stdout, stderr) <- readProcess procSpec
+  (exitcode, stdout, stderr) <- readProcess $ proc prog args
   case exitcode of
     ExitSuccess -> pure (stdout, stderr)
     ExitFailure n -> do
