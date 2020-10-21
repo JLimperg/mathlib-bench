@@ -25,6 +25,7 @@ executable mathlib-bench
                      , text == 1.2.*
                      , time == 1.9.*
                      , typed-process == 0.2.*
+                     , unix == 2.7.*
   other-modules:       Config
                      , Logging
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N

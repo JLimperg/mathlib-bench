@@ -19,9 +19,11 @@ import           Database.SQLite.Simple
 import           Database.SQLite.Simple.FromField (FromField(..))
 import           Database.SQLite.Simple.ToField (ToField(..))
 import           System.Directory
-  ( doesDirectoryExist, withCurrentDirectory, createDirectoryIfMissing )
-import           System.Exit (exitFailure, ExitCode(..))
-import           System.Process.Typed (readProcess, readProcess_, runProcess_, proc)
+  ( doesDirectoryExist, withCurrentDirectory, createDirectoryIfMissing
+  , removeDirectoryRecursive )
+import           System.Exit (exitSuccess, exitFailure, ExitCode(..))
+import           System.Posix.Signals (sigINT, Handler(..), installHandler)
+import           System.Process.Typed (setDelegateCtlc, readProcess, proc)
 
 import Config
 import Logging
@@ -62,7 +64,8 @@ instance ToRow Timing where
 
 cmd :: String -> [String] -> IO (BL.ByteString, BL.ByteString)
 cmd prog args = do
-  (exitcode, stdout, stderr) <- readProcess $ proc prog args
+  let procSpec = setDelegateCtlc True $ proc prog args
+  (exitcode, stdout, stderr) <- readProcess procSpec
   case exitcode of
     ExitSuccess -> pure (stdout, stderr)
     ExitFailure n -> do
@@ -136,9 +139,17 @@ writeTiming :: CommitHash -> ElapsedTimeMillis -> IO ()
 writeTiming commit time = withConnection _SQLITE_FILE $ \conn ->
   execute conn "INSERT INTO timings (commit_hash, elapsed_millis) VALUES (?, ?)" (commit, time)
 
+shutdownHandler :: IO ()
+shutdownHandler = do
+  logInfo "mathlib-bench shutting down"
+  logInfo $ "removing " <> TL.pack _WORKDIR
+  removeDirectoryRecursive _WORKDIR
+  exitSuccess
+
 main :: IO ()
 main = do
   logInfo "====== mathlib-bench starting ======"
+  void $ installHandler sigINT (Catch shutdownHandler) Nothing
   setupRootDir
   setupDb
   setupGitRepo
