@@ -2,7 +2,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Logging
-( LogSeverity(..)
+( setupLogging
+, LogSeverity(..)
 , logMsg
 , logInfo
 , logError
@@ -10,6 +11,12 @@ module Logging
 
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.IO as TL
+import           System.IO (BufferMode(..), hSetBuffering, stdout, stderr)
+
+setupLogging :: IO ()
+setupLogging = do
+  hSetBuffering stdout LineBuffering
+  hSetBuffering stderr LineBuffering
 
 data LogSeverity
   = LogError

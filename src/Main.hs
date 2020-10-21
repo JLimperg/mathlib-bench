@@ -137,6 +137,7 @@ writeTiming commit time = withConnection _SQLITE_FILE $ \conn ->
 
 main :: IO ()
 main = do
+  setupLogging
   logInfo "====== mathlib-bench starting ======"
   setupRootDir
   setupDb
