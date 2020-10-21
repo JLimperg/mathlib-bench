@@ -15,7 +15,8 @@ import Database.SQLite.Simple
   , field )
 import Database.SQLite.Simple.FromField (FromField(..))
 import Database.SQLite.Simple.ToField (ToField(..))
-import System.Directory (doesDirectoryExist, withCurrentDirectory)
+import System.Directory
+  ( doesDirectoryExist, withCurrentDirectory, createDirectoryIfMissing )
 import System.Process.Typed (readProcess_, runProcess_, proc)
 
 newtype CommitHash = CommitHash { fromCommitHash :: Text }
@@ -53,6 +54,9 @@ instance FromRow Timing where
 instance ToRow Timing where
   toRow (Timing id_ commit elapsed) = toRow (id_, commit, elapsed)
 
+setupRootDir :: IO ()
+setupRootDir = createDirectoryIfMissing True _ROOTDIR
+
 setupGitRepo :: IO ()
 setupGitRepo = do
   workDirExists <- doesDirectoryExist _WORKDIR
@@ -82,7 +86,7 @@ timeBuild commit = withCurrentDirectory _WORKDIR $ do
   runProcess_ $ proc "git" ["clean", "-fdx"]
   runProcess_ $ proc  _LEANPKG ["configure"]
   startTime <- getPOSIXTime
-  runProcess_ $ proc _LEANPKG ["build"]
+  runProcess_ $ proc _LEANPKG ["build", "--", "--threads=2", "--memory=6000"]
   endTime <- getPOSIXTime
   pure $ nominalDiffTimeToElapsedTimeMillis $ endTime - startTime
 
@@ -92,6 +96,7 @@ writeTiming commit time = withConnection _SQLITE_FILE $ \conn ->
 
 main :: IO ()
 main = do
+  setupRootDir
   setupDb
   setupGitRepo
   forever $ do

@@ -1,16 +1,14 @@
 [Unit]
 Description=Mathlib benchmarker
-AssertPathExists=/mathlib-bench
+AssertPathExists=/home/mathlib-bench/root
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/mathlib-bench
+ExecStart=/home/jannis/mathlib-bench
 User=mathlib-bench
 Group=mathlib-bench
 Restart=always
 
-SystemCallFilter=@system-service
-ProtectHome=true
 ProtectSystem=full
 NoNewPrivileges=true
 ProtectKernelTunables=true
@@ -20,11 +18,9 @@ ProtectControlGroups=true
 MemoryDenyWriteExecute=true
 RestrictSUIDSGID=true
 KeyringMode=private
-ProtectClock=true
 RestrictRealtime=true
 PrivateDevices=true
 PrivateTmp=true
-ProtectHostname=true
 
 [Install]
 WantedBy=multi-user.target
