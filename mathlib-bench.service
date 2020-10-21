@@ -4,7 +4,7 @@ AssertPathExists=/home/mathlib-bench/root
 
 [Service]
 Type=simple
-ExecStart=/home/jannis/mathlib-bench
+ExecStart=/home/mathlib-bench/mathlib-bench
 User=mathlib-bench
 Group=mathlib-bench
 Restart=always
