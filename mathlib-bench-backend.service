@@ -1,9 +1,9 @@
 [Unit]
-Description=Mathlib benchmarker
+Description=mathlib benchmarker backend
 
 [Service]
 Type=simple
-ExecStart=/home/mathlib-bench/mathlib-bench
+ExecStart=/home/mathlib-bench/mathlib-bench-backend
 User=mathlib-bench
 Group=mathlib-bench
 Restart=always

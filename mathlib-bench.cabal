@@ -13,18 +13,29 @@ build-type:          Simple
 cabal-version:       >=1.10
 extra-source-files:  README.md
 
-executable mathlib-bench
-  hs-source-dirs:      src
-  main-is:             Main.hs
+library
+  hs-source-dirs:      lib
   default-language:    Haskell2010
   build-depends:       base >= 4.7 && < 5
-                     , bytestring == 0.10.*
-                     , directory == 1.3.*
                      , filepath == 1.4.*
                      , sqlite-simple == 0.4.*
                      , text == 1.2.*
                      , time == 1.9.*
+  exposed-modules:     MathlibBench.Types
+                     , MathlibBench.Config
+
+executable mathlib-bench-backend
+  hs-source-dirs:      backend
+  main-is:             Main.hs
+  default-language:    Haskell2010
+  build-depends:       mathlib-bench
+                     , base >= 4.7 && < 5
+                     , bytestring == 0.10.*
+                     , directory == 1.3.*
+                     , sqlite-simple == 0.4.*
+                     , text == 1.2.*
+                     , time == 1.9.*
                      , typed-process == 0.2.*
-  other-modules:       Config
-                     , Logging
+  other-modules:       MathlibBench.Backend.Config
+                     , MathlibBench.Backend.Logging
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
