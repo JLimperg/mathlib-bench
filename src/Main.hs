@@ -103,9 +103,7 @@ main = do
   forever $ do
     headCommit <- getHeadCommit
     hasTiming <- hasTimingForCommit headCommit
-    if hasTiming
-      then pure ()
-      else do
-        elapsed <- timeBuild headCommit
-        writeTiming headCommit elapsed
+    unless hasTiming $ do
+      elapsed <- timeBuild headCommit
+      writeTiming headCommit elapsed
     threadDelay $ 5*60*1000000
