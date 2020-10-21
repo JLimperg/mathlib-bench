@@ -8,6 +8,8 @@ ExecStart=/home/mathlib-bench/mathlib-bench
 User=mathlib-bench
 Group=mathlib-bench
 Restart=always
+StandardOutput=journal
+StandardError=journal
 
 ProtectSystem=full
 NoNewPrivileges=true
