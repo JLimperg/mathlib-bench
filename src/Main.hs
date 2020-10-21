@@ -3,7 +3,7 @@
 module Main (main) where
 
 import           Control.Concurrent (threadDelay)
-import           Control.Monad (when, void, forever, unless)
+import           Control.Monad (when, void, forever)
 import qualified Data.ByteString.Lazy as BL
 import           Data.String (IsString(..))
 import           Data.Text (Text)
@@ -21,7 +21,7 @@ import           Database.SQLite.Simple.ToField (ToField(..))
 import           System.Directory
   ( doesDirectoryExist, withCurrentDirectory, createDirectoryIfMissing
   , removeDirectoryRecursive )
-import           System.Exit (exitSuccess, exitFailure, ExitCode(..))
+import           System.Exit (exitFailure, ExitCode(..))
 import           System.Process.Typed (readProcess, proc)
 
 import Config
