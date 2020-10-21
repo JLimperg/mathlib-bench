@@ -1,24 +1,25 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main (main) where
 
-import Config
-import Control.Concurrent (threadDelay)
-import Control.Monad (forever, unless)
+import           Control.Concurrent (threadDelay)
+import           Control.Monad (forever, unless)
 import qualified Data.ByteString.Lazy as BL
-import Data.String (IsString(..))
-import Data.Text (Text)
+import           Data.String (IsString(..))
+import           Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import Data.Time.Clock (NominalDiffTime)
-import Data.Time.Clock.POSIX (getPOSIXTime)
-import Database.SQLite.Simple
+import           Data.Time.Clock (NominalDiffTime)
+import           Data.Time.Clock.POSIX (getPOSIXTime)
+import           Database.SQLite.Simple
   ( query, Only(..), execute, ToRow(..), FromRow(..), withConnection, execute_
   , field )
-import Database.SQLite.Simple.FromField (FromField(..))
-import Database.SQLite.Simple.ToField (ToField(..))
-import System.Directory
+import           Database.SQLite.Simple.FromField (FromField(..))
+import           Database.SQLite.Simple.ToField (ToField(..))
+import           System.Directory
   ( doesDirectoryExist, withCurrentDirectory, createDirectoryIfMissing )
-import System.Process.Typed (readProcess_, runProcess_, proc)
+import           System.Process.Typed (readProcess_, runProcess_, proc)
+
+import Config
 
 newtype CommitHash = CommitHash { fromCommitHash :: Text }
 
