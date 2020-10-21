@@ -71,13 +71,9 @@ cmd prog args = do
       logError $ TL.unwords $ "command:" : TL.pack prog : map TL.pack args
       logError $ "exit code: " <> TL.pack (show n)
       logError "stdout:"
-      logError "==============="
       TL.putStrLn $ TL.decodeUtf8 stdout
-      logError "==============="
       logError "stderr:"
-      logError "==============="
       TL.putStrLn $ TL.decodeUtf8 stderr
-      logError "==============="
       exitFailure
 
 cmd_ :: String -> [String] -> IO ()
