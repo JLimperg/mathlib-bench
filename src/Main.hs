@@ -146,8 +146,9 @@ main = do
     headCommit <- getHeadCommit
     hasTiming <- hasTimingForCommit headCommit
     if hasTiming
-      then logInfo "HEAD has already been built"
+      then do
+        logInfo "HEAD has already been built"
+        threadDelay $ 5*60*1000000
       else do
         elapsed <- timeBuild headCommit
         writeTiming headCommit elapsed
-    threadDelay $ 5*60*1000000
