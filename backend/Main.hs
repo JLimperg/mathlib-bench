@@ -6,14 +6,13 @@ import           Control.Concurrent (threadDelay)
 import           Control.Monad (when, void, forever)
 import qualified Data.ByteString.Lazy as BL
 import           Data.String (IsString(..))
-import           Data.Text (Text)
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Encoding as TL
 import qualified Data.Text.Lazy.IO as TL
 import           Data.Time.Clock.POSIX (getPOSIXTime)
 import           Database.SQLite.Simple
-  ( query, Only(..), execute, withConnection, execute_, field )
+  ( query, Only(..), execute, execute_, withConnection, execute )
 import           System.Directory
   ( doesDirectoryExist, withCurrentDirectory, createDirectoryIfMissing
   , removeDirectoryRecursive )
