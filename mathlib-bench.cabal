@@ -1,40 +1,40 @@
+cabal-version:       2.2
 name:                mathlib-bench
 version:             0.1.0.0
 -- synopsis:
 -- description:
 homepage:            https://github.com/jlimperg/mathlib-bench#readme
-license:             BSD3
+license:             BSD-3-Clause
 license-file:        LICENSE
 author:              Jannis Limperg
 maintainer:          jannis@limperg.de
 copyright:           (C) 2020 Jannis Limperg
 category:            Education
 build-type:          Simple
-cabal-version:       >=1.10
 extra-source-files:  README.md
 
-library
-  hs-source-dirs:      lib
-  default-language:    Haskell2010
+common deps
   build-depends:       base >= 4.7 && < 5
-                     , filepath == 1.4.*
                      , sqlite-simple == 0.4.*
                      , text == 1.2.*
                      , time == 1.9.*
+
+library
+  import:              deps
+  hs-source-dirs:      lib
+  default-language:    Haskell2010
+  build-depends:       filepath == 1.4.*
   exposed-modules:     MathlibBench.Types
                      , MathlibBench.Config
 
 executable mathlib-bench-backend
+  import:              deps
   hs-source-dirs:      backend
   main-is:             Main.hs
   default-language:    Haskell2010
   build-depends:       mathlib-bench
-                     , base >= 4.7 && < 5
                      , bytestring == 0.10.*
                      , directory == 1.3.*
-                     , sqlite-simple == 0.4.*
-                     , text == 1.2.*
-                     , time == 1.9.*
                      , typed-process == 0.2.*
   other-modules:       MathlibBench.Backend.Config
                      , MathlibBench.Backend.Logging
