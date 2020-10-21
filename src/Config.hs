@@ -16,3 +16,9 @@ _MATHLIB_GIT_URL = "https://github.com/leanprover-community/mathlib"
 
 _LEANPKG :: FilePath
 _LEANPKG = "/home/mathlib-bench/.elan/bin/leanpkg" -- TODO change
+
+_NUM_THREADS :: Int
+_NUM_THREADS = 2
+
+_MEM_LIMIT_MB :: Int
+_MEM_LIMIT_MB = 6000

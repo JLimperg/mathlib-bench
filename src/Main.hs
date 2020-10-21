@@ -69,7 +69,6 @@ setupDb = withConnection _SQLITE_FILE $ \conn -> do
 
 getHeadCommit :: IO CommitHash
 getHeadCommit = withCurrentDirectory _WORKDIR $ do
-  runProcess_ $ proc "git" ["checkout", "master"]
   runProcess_ $ proc "git" ["pull"]
   (stdout, _) <- readProcess_ (proc "git" ["log", "-n1", "--format=format:%H"])
   pure $ CommitHash $ T.decodeUtf8 $ BL.toStrict stdout
@@ -82,11 +81,13 @@ hasTimingForCommit commit = do
 
 timeBuild :: CommitHash -> IO ElapsedTimeMillis
 timeBuild commit = withCurrentDirectory _WORKDIR $ do
-  runProcess_ $ proc "git" ["checkout", T.unpack (fromCommitHash commit)]
+  runProcess_ $ proc "git" ["reset", "--hard", "HEAD"]
   runProcess_ $ proc "git" ["clean", "-fdx"]
   runProcess_ $ proc  _LEANPKG ["configure"]
   startTime <- getPOSIXTime
-  runProcess_ $ proc _LEANPKG ["build", "--", "--threads=2", "--memory=6000"]
+  runProcess_ $ proc _LEANPKG
+    [ "build", "--", "--threads", show _NUM_THREADS, "--memory"
+    , show _MEM_LIMIT_MB ]
   endTime <- getPOSIXTime
   pure $ nominalDiffTimeToElapsedTimeMillis $ endTime - startTime
 
