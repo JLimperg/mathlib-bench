@@ -4,3 +4,5 @@ cradle:
       component: "mathlib-bench:lib"
     - path: "backend"
       component: "mathlib-bench:exe:mathlib-bench-backend"
+    - path: "frontend"
+      component: "mathlib-bench:exe:mathlib-bench-frontend"
