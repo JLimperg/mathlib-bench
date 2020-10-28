@@ -30,7 +30,7 @@ elapsedTimeMillisToNominalDiffTime = (/ 1e3) . fromIntegral . fromElapsedTimeMil
 
 data Timing = Timing
   { timingId :: Int
-  , timingCommit :: Text
+  , timingCommit :: CommitHash
   , timingElapsed :: ElapsedTimeMillis
   }
 
