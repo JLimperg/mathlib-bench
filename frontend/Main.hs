@@ -11,6 +11,7 @@ import qualified Network.Wai as Wai
 import qualified Network.HTTP.Types as HTTP
 import qualified Network.Wai.Handler.Warp as Warp
 import           Text.Blaze.Html4.Strict hiding (map)
+import           Text.Blaze.Html4.Strict.Attributes hiding (title)
 import qualified Text.Blaze.Renderer.Utf8 as BlazeUtf8
 
 import MathlibBench.Config
@@ -26,7 +27,8 @@ renderTiming Timing { timingCommit = commit, timingElapsed = elapsed } = tr $ do
 
 renderTimings :: [Timing] -> Html
 renderTimings timings = docTypeHtml $ do
-  head $
+  head $ do
+    meta ! charset "UTF-8"
     title "mathlib per-commit build times"
 
   body $ do
