@@ -12,7 +12,8 @@ fi
 install -o mathlib-bench -g mathlib-bench -m 700 "$bin_dir/mathlib-bench-backend"  /home/mathlib-bench/
 install -o mathlib-bench -g mathlib-bench -m 700 "$bin_dir/mathlib-bench-frontend" /home/mathlib-bench/
 
-if test -d /etc/systemd/system; then
+
+if which systemctl &> /dev/null; then
     install -o 0 -g 0 -m 600 "$systemd_dir/mathlib-bench-backend.service" /etc/systemd/system
     install -o 0 -g 0 -m 600 "$systemd_dir/mathlib-bench-frontend.service" /etc/systemd/system
     systemctl daemon-reload
