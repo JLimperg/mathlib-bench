@@ -6,19 +6,19 @@ module Main (main) where
 
 import           Prelude hiding (head, id, div)
 
+import           Control.Monad.IO.Class (liftIO)
 import qualified Data.ByteString.Lazy as BL
 import           Data.Fixed (Centi)
 import qualified Data.Text as T
 import           Data.Time
   (NominalDiffTime, nominalDiffTimeToSeconds, formatTime, defaultTimeLocale)
 import           Database.SQLite.Simple (Connection, query_, withConnection)
-import qualified Network.Wai as Wai
-import qualified Network.HTTP.Types as HTTP
-import qualified Network.Wai.Handler.Warp as Warp
 import           Text.Blaze.Html4.Strict hiding (map)
 import           Text.Blaze.Html4.Strict.Attributes hiding (title)
 import qualified Text.Blaze.Html4.Strict.Attributes as Attr
 import qualified Text.Blaze.Renderer.Utf8 as BlazeUtf8
+import           Web.Scotty (scotty, get)
+import qualified Web.Scotty as Scotty
 
 import MathlibBench.Config
 import MathlibBench.Frontend.Config
@@ -114,13 +114,9 @@ makeTimingPage conn = do
   timings <- loadTimings conn
   pure $ BlazeUtf8.renderMarkup $ renderTimings $ timingsToDisplayTimings timings
 
-app :: Wai.Application
-app _ respond = do
-  page <- withConnection _SQLITE_FILE makeTimingPage
-  respond $ Wai.responseLBS
-      HTTP.status200
-      [("Content-Type", "text/html; charset=uft-8")]
-      page
-
 main :: IO ()
-main = Warp.run 8080 app
+main = scotty 8080 $ do
+  get "/" $ do
+    page <- liftIO $ withConnection _SQLITE_FILE makeTimingPage
+    Scotty.setHeader "Content-Type" "text/html; charset=utf-8"
+    Scotty.raw page
