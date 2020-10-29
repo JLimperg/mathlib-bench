@@ -31,8 +31,8 @@ data PreviousTiming = PreviousTiming
   }
 
 data DisplayTiming = DisplayTiming
-  { displayTimingTiming :: Timing
-  , displayTimingPrevious :: Maybe PreviousTiming
+  { _displayTimingTiming :: Timing
+  , _displayTimingPrevious :: Maybe PreviousTiming
   }
 
 makePreviousTiming :: Timing -> Timing -> PreviousTiming
@@ -84,7 +84,8 @@ renderDisplayTiming (DisplayTiming current previous) = tr $ do
     ! href (stringValue $ _COMMIT_BASE_URL ++ "/" ++ T.unpack currentCommit)
     ! Attr.title (textValue currentCommit)
   td $ formatElapsedTime $ timingElapsed current
-  td $ renderMaybe previous $ string . formatTime defaultTimeLocale "%mm%Ss" . previousTimingTimeDiff
+  td $ renderMaybe previous $
+    string . formatTime defaultTimeLocale "%mm%Ss" . previousTimingTimeDiff
   td $ renderMaybe previous $ string . show . previousTimingTimeRatio
   td $ renderMaybe previous $ \previous ->
     renderDiffLink (timingCommit current) (previousTimingCommit previous)
