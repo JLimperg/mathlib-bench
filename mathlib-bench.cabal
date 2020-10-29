@@ -52,4 +52,5 @@ executable mathlib-bench-frontend
                      , http-types == 0.12.*
                      , wai == 3.2.*
                      , warp == 3.3.*
+  other-modules:       MathlibBench.Frontend.Config
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N

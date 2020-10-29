@@ -8,6 +8,8 @@ import           Prelude hiding (head, id, div)
 
 import qualified Data.ByteString.Lazy as BL
 import           Data.Fixed (Centi)
+import           Data.String (IsString(..))
+import qualified Data.Text as T
 import           Data.Time
   (NominalDiffTime, nominalDiffTimeToSeconds, formatTime, defaultTimeLocale)
 import           Database.SQLite.Simple (Connection, query_, withConnection)
@@ -19,6 +21,7 @@ import           Text.Blaze.Html4.Strict.Attributes hiding (title)
 import qualified Text.Blaze.Renderer.Utf8 as BlazeUtf8
 
 import MathlibBench.Config
+import MathlibBench.Frontend.Config
 import MathlibBench.Types
 
 data PreviousTiming = PreviousTiming
@@ -67,12 +70,21 @@ formatElapsedTime
 renderMaybe :: Maybe a -> (a -> Html) -> Html
 renderMaybe ma f = maybe "─" f ma
 
+renderDiffLink :: CommitHash -> CommitHash -> Html
+renderDiffLink current previous =
+  let url = fromString $ concat
+        [ _DIFF_BASE_URL, "/", T.unpack (fromCommitHash previous), ".."
+        , T.unpack (fromCommitHash current) ] in
+  a "diff" ! href url
+
 renderDisplayTiming :: DisplayTiming -> Html
-renderDisplayTiming (DisplayTiming current prev) = tr $ do
+renderDisplayTiming (DisplayTiming current previous) = tr $ do
   td $ text $ fromCommitHash $ timingCommit current
   td $ formatElapsedTime $ timingElapsed current
-  td $ renderMaybe prev $ string . formatTime defaultTimeLocale "%mm%Ss" . previousTimingTimeDiff
-  td $ renderMaybe prev $ string . show . previousTimingTimeRatio
+  td $ renderMaybe previous $ string . formatTime defaultTimeLocale "%mm%Ss" . previousTimingTimeDiff
+  td $ renderMaybe previous $ string . show . previousTimingTimeRatio
+  td $ renderMaybe previous $ \previous ->
+    renderDiffLink (timingCommit current) (previousTimingCommit previous)
 
 renderTimings :: [DisplayTiming] -> Html
 renderTimings timings = docTypeHtml $ do
@@ -88,6 +100,7 @@ renderTimings timings = docTypeHtml $ do
         th "elapsed time"
         th "time diff"
         th "%"
+        th "diff"
       mconcat $ map renderDisplayTiming timings
 
 makeTimingPage :: Connection -> IO BL.ByteString
