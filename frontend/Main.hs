@@ -6,6 +6,7 @@ module Main (main) where
 
 import           Prelude hiding (head, id, div)
 
+import           Control.Monad (forM_)
 import           Control.Monad.IO.Class (liftIO)
 import qualified Data.ByteString.Lazy as BL
 import           Data.Fixed (Centi)
@@ -80,9 +81,17 @@ renderDiffLink current (Just previous) =
         , T.unpack (fromCommitHash current) ] in
   mconcat [" (", a "diff" ! href url, ")"]
 
+timingRowClass :: DisplayTiming -> AttributeValue
+timingRowClass (DisplayTiming _ Nothing) = "timing-row-default"
+timingRowClass (DisplayTiming _ (Just previous)) =
+  if previousTimingTimeDiff previous > 0
+    then "timing-row-worse"
+    else "timing-row-better"
+
 renderDisplayTiming :: DisplayTiming -> Html
-renderDisplayTiming (DisplayTiming current previous) = tr $
-  mapM_ td [commit, elapsedTime, timeChangeAbsolute, timeChangeRelative]
+renderDisplayTiming timing@(DisplayTiming current previous) = tr $
+  forM_ [commit, elapsedTime, timeChangeAbsolute, timeChangeRelative] $ \row ->
+    td row ! class_ (timingRowClass timing)
   where
     currentCommit :: Text
     currentCommit = fromCommitHash $ timingCommit current

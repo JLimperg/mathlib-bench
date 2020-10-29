@@ -9,6 +9,10 @@ td, th {
     padding: 1em;
 }
 
-tr:nth-child(even) {
-    background-color: lightgrey;
+tr .timing-row-worse {
+    background-color: lightcoral;
+}
+
+tr .timing-row-better {
+    background-color: lime;
 }
