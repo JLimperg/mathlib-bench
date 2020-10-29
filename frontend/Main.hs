@@ -90,10 +90,10 @@ renderTimings :: [DisplayTiming] -> Html
 renderTimings timings = docTypeHtml $ do
   head $ do
     meta ! charset "UTF-8"
-    title "mathlib per-commit build times"
+    title "mathlib build time benchmark"
 
   body $ do
-    h1 "mathlib per-commit build times"
+    h1 "mathlib build time benchmark"
     table $ do
       tr $ do
         th "commit"
