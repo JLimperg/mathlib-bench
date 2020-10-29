@@ -8,7 +8,6 @@ import           Prelude hiding (head, id, div)
 
 import qualified Data.ByteString.Lazy as BL
 import           Data.Fixed (Centi)
-import           Data.String (IsString(..))
 import qualified Data.Text as T
 import           Data.Time
   (NominalDiffTime, nominalDiffTimeToSeconds, formatTime, defaultTimeLocale)
@@ -18,6 +17,7 @@ import qualified Network.HTTP.Types as HTTP
 import qualified Network.Wai.Handler.Warp as Warp
 import           Text.Blaze.Html4.Strict hiding (map)
 import           Text.Blaze.Html4.Strict.Attributes hiding (title)
+import qualified Text.Blaze.Html4.Strict.Attributes as Attr
 import qualified Text.Blaze.Renderer.Utf8 as BlazeUtf8
 
 import MathlibBench.Config
@@ -72,19 +72,24 @@ renderMaybe ma f = maybe "─" f ma
 
 renderDiffLink :: CommitHash -> CommitHash -> Html
 renderDiffLink current previous =
-  let url = fromString $ concat
+  let url = stringValue $ concat
         [ _DIFF_BASE_URL, "/", T.unpack (fromCommitHash previous), ".."
         , T.unpack (fromCommitHash current) ] in
   a "diff" ! href url
 
 renderDisplayTiming :: DisplayTiming -> Html
 renderDisplayTiming (DisplayTiming current previous) = tr $ do
-  td $ text $ fromCommitHash $ timingCommit current
+  td $
+    a (text $ T.take 8 $ currentCommit)
+    ! href (stringValue $ _COMMIT_BASE_URL ++ "/" ++ T.unpack currentCommit)
+    ! Attr.title (textValue currentCommit)
   td $ formatElapsedTime $ timingElapsed current
   td $ renderMaybe previous $ string . formatTime defaultTimeLocale "%mm%Ss" . previousTimingTimeDiff
   td $ renderMaybe previous $ string . show . previousTimingTimeRatio
   td $ renderMaybe previous $ \previous ->
     renderDiffLink (timingCommit current) (previousTimingCommit previous)
+  where
+    currentCommit = fromCommitHash $ timingCommit current
 
 renderTimings :: [DisplayTiming] -> Html
 renderTimings timings = docTypeHtml $ do
