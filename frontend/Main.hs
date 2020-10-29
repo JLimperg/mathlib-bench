@@ -9,6 +9,7 @@ import           Prelude hiding (head, id, div)
 import           Control.Monad.IO.Class (liftIO)
 import qualified Data.ByteString.Lazy as BL
 import           Data.Fixed (Centi)
+import           Data.Text (Text)
 import qualified Data.Text as T
 import           Data.Time
   (NominalDiffTime, nominalDiffTimeToSeconds, formatTime, defaultTimeLocale)
@@ -17,11 +18,12 @@ import           Text.Blaze.Html4.Strict hiding (map)
 import           Text.Blaze.Html4.Strict.Attributes hiding (title)
 import qualified Text.Blaze.Html4.Strict.Attributes as Attr
 import qualified Text.Blaze.Renderer.Utf8 as BlazeUtf8
-import           Web.Scotty (scotty, get)
+import           Web.Scotty (ActionM, scotty, get)
 import qualified Web.Scotty as Scotty
 
 import MathlibBench.Config
 import MathlibBench.Frontend.Config
+import MathlibBench.Frontend.Static
 import MathlibBench.Types
 
 data PreviousTiming = PreviousTiming
@@ -70,32 +72,50 @@ formatElapsedTime
 renderMaybe :: Maybe a -> (a -> Html) -> Html
 renderMaybe ma f = maybe "─" f ma
 
-renderDiffLink :: CommitHash -> CommitHash -> Html
-renderDiffLink current previous =
+renderDiffLink :: CommitHash -> Maybe CommitHash -> Html
+renderDiffLink _ Nothing = ""
+renderDiffLink current (Just previous) =
   let url = stringValue $ concat
         [ _DIFF_BASE_URL, "/", T.unpack (fromCommitHash previous), ".."
         , T.unpack (fromCommitHash current) ] in
-  a "diff" ! href url
+  mconcat [" (", a "diff" ! href url, ")"]
 
 renderDisplayTiming :: DisplayTiming -> Html
-renderDisplayTiming (DisplayTiming current previous) = tr $ do
-  td $
-    a (text $ T.take 8 $ currentCommit)
-    ! href (stringValue $ _COMMIT_BASE_URL ++ "/" ++ T.unpack currentCommit)
-    ! Attr.title (textValue currentCommit)
-  td $ formatElapsedTime $ timingElapsed current
-  td $ renderMaybe previous $
-    string . formatTime defaultTimeLocale "%mm%Ss" . previousTimingTimeDiff
-  td $ renderMaybe previous $ string . show . previousTimingTimeRatio
-  td $ renderMaybe previous $ \previous ->
-    renderDiffLink (timingCommit current) (previousTimingCommit previous)
+renderDisplayTiming (DisplayTiming current previous) = tr $
+  mapM_ td [commit, elapsedTime, timeChangeAbsolute, timeChangeRelative]
   where
+    currentCommit :: Text
     currentCommit = fromCommitHash $ timingCommit current
+
+    commit :: Html
+    commit = mconcat
+      [ a (text $ T.take 8 $ currentCommit)
+        ! href (stringValue $ _COMMIT_BASE_URL ++ "/" ++ T.unpack currentCommit)
+        ! Attr.title (textValue currentCommit)
+      , renderDiffLink (timingCommit current) (previousTimingCommit <$> previous)
+      ]
+
+    elapsedTime :: Html
+    elapsedTime = formatElapsedTime $ timingElapsed current
+
+    timeChangeAbsolute :: Html
+    timeChangeAbsolute = case previous of
+      Nothing -> "─"
+      Just previous ->
+        string $ formatTime defaultTimeLocale "%mm%Ss" $
+          previousTimingTimeDiff previous
+
+    timeChangeRelative :: Html
+    timeChangeRelative = case previous of
+      Nothing -> "─"
+      Just previous -> string $ show $ previousTimingTimeRatio previous
+
 
 renderTimings :: [DisplayTiming] -> Html
 renderTimings timings = docTypeHtml $ do
   head $ do
     meta ! charset "UTF-8"
+    link ! rel "stylesheet" ! href "/global.css"
     title "mathlib build time benchmark"
 
   body $ do
@@ -103,10 +123,9 @@ renderTimings timings = docTypeHtml $ do
     table $ do
       tr $ do
         th "commit"
-        th "elapsed time"
-        th "time diff"
-        th "%"
-        th "diff"
+        th "time"
+        th "time change"
+        th "time change %"
       mconcat $ map renderDisplayTiming timings
 
 makeTimingPage :: Connection -> IO BL.ByteString
@@ -114,9 +133,19 @@ makeTimingPage conn = do
   timings <- loadTimings conn
   pure $ BlazeUtf8.renderMarkup $ renderTimings $ timingsToDisplayTimings timings
 
+setContentTypeHtml :: ActionM ()
+setContentTypeHtml = Scotty.setHeader "Content-Type" "text/html; charset=utf-8"
+
+setContentTypeCss :: ActionM ()
+setContentTypeCss = Scotty.setHeader "Content-Type" "text/css; charset=utf-8"
+
 main :: IO ()
 main = scotty 8080 $ do
   get "/" $ do
     page <- liftIO $ withConnection _SQLITE_FILE makeTimingPage
-    Scotty.setHeader "Content-Type" "text/html; charset=utf-8"
+    setContentTypeHtml
     Scotty.raw page
+
+  get "/global.css" $ do
+    setContentTypeCss
+    Scotty.raw $ BL.fromStrict globalCss
