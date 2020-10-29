@@ -61,7 +61,7 @@ loadTimings conn = query_ conn "SELECT * FROM timings ORDER BY id DESC"
 formatElapsedTime :: ElapsedTimeMillis -> Html
 formatElapsedTime
   = string
-  . formatTime defaultTimeLocale "%H:%M:%S"
+  . formatTime defaultTimeLocale "%Hh%Mm%Ss"
   . elapsedTimeMillisToNominalDiffTime
 
 renderMaybe :: Maybe a -> (a -> Html) -> Html
@@ -71,7 +71,7 @@ renderDisplayTiming :: DisplayTiming -> Html
 renderDisplayTiming (DisplayTiming current prev) = tr $ do
   td $ text $ fromCommitHash $ timingCommit current
   td $ formatElapsedTime $ timingElapsed current
-  td $ renderMaybe prev $ string . formatTime defaultTimeLocale "%m:%S" . previousTimingTimeDiff
+  td $ renderMaybe prev $ string . formatTime defaultTimeLocale "%mm%Ss" . previousTimingTimeDiff
   td $ renderMaybe prev $ string . show . previousTimingTimeRatio
 
 renderTimings :: [DisplayTiming] -> Html
@@ -86,8 +86,8 @@ renderTimings timings = docTypeHtml $ do
       tr $ do
         th "commit"
         th "elapsed time"
-        th "time diff absolute"
-        th "time diff percent"
+        th "time diff"
+        th "%"
       mconcat $ map renderDisplayTiming timings
 
 makeTimingPage :: Connection -> IO BL.ByteString
