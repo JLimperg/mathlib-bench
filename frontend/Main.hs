@@ -86,9 +86,9 @@ timingRowClass (DisplayTiming _ (Just previous)) =
     else "timing-row-better"
 
 renderDisplayTiming :: DisplayTiming -> Html
-renderDisplayTiming timing@(DisplayTiming current previous) = tr $
-  forM_ [commit, elapsedTime, timeChangeAbsolute, timeChangeRelative] $ \row ->
-    td row ! class_ (timingRowClass timing)
+renderDisplayTiming timing@(DisplayTiming current previous)
+  = tr ! class_ (timingRowClass timing) $
+      mapM_ td [commit, elapsedTime, timeChangeAbsolute, timeChangeRelative]
   where
     currentCommit :: Text
     currentCommit = fromCommitHash $ timingCommit current

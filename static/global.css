@@ -6,13 +6,13 @@ table {
 td, th {
     border: 1px solid black;
     text-align: left;
-    padding: 1em;
+    padding: 0.5em;
 }
 
-tr .timing-row-worse {
+tr.timing-row-worse {
     background-color: lightcoral;
 }
 
-tr .timing-row-better {
+tr.timing-row-better {
     background-color: lime;
 }
