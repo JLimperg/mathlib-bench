@@ -108,8 +108,12 @@ renderDisplayTiming timing@(DisplayTiming current previous) = tr $
     timeChangeAbsolute = case previous of
       Nothing -> "─"
       Just previous ->
-        string $ formatTime defaultTimeLocale "%mm%Ss" $
-          previousTimingTimeDiff previous
+        let diff = previousTimingTimeDiff previous in
+        let isPositive = diff >= 0 in
+        string $
+          if isPositive
+            then formatTime defaultTimeLocale "%mm%Ss" diff
+            else formatTime defaultTimeLocale "-%mm%Ss" (negate diff)
 
     timeChangeRelative :: Html
     timeChangeRelative = case previous of
