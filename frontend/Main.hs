@@ -70,9 +70,6 @@ formatElapsedTime
   . formatTime defaultTimeLocale "%Hh%Mm%Ss"
   . elapsedTimeMillisToNominalDiffTime
 
-renderMaybe :: Maybe a -> (a -> Html) -> Html
-renderMaybe ma f = maybe "─" f ma
-
 renderDiffLink :: CommitHash -> Maybe CommitHash -> Html
 renderDiffLink _ Nothing = ""
 renderDiffLink current (Just previous) =
