@@ -73,7 +73,7 @@ renderDiffLink :: CommitHash -> Maybe CommitHash -> Html
 renderDiffLink _ Nothing = ""
 renderDiffLink current (Just previous) =
   let url = stringValue $ concat
-        [ _DIFF_BASE_URL, "/", T.unpack (fromCommitHash previous), ".."
+        [ _DIFF_BASE_URL, "/", T.unpack (fromCommitHash previous), "..."
         , T.unpack (fromCommitHash current) ] in
   mconcat [" (", a "diff" ! href url, ")"]
 
