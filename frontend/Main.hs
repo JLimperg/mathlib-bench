@@ -6,7 +6,6 @@ module Main (main) where
 
 import           Prelude hiding (head, id, div)
 
-import           Control.Monad (forM_)
 import           Control.Monad.IO.Class (liftIO)
 import qualified Data.ByteString.Lazy as BL
 import           Data.Fixed (Centi)
@@ -80,10 +79,12 @@ renderDiffLink current (Just previous) =
 
 timingRowClass :: DisplayTiming -> AttributeValue
 timingRowClass (DisplayTiming _ Nothing) = "timing-row-default"
-timingRowClass (DisplayTiming _ (Just previous)) =
-  if previousTimingTimeDiff previous > 0
-    then "timing-row-worse"
-    else "timing-row-better"
+timingRowClass (DisplayTiming _ (Just previous))
+  | abs ratio < _EXPECTED_TIME_DIFF_PERCENT_VARIATION = "timing-row-default"
+  | ratio > 0 = "timing-row-worse"
+  | otherwise = "timing-row-better"
+  where
+    ratio = previousTimingTimeRatio previous
 
 renderDisplayTiming :: DisplayTiming -> Html
 renderDisplayTiming timing@(DisplayTiming current previous)
