@@ -23,7 +23,7 @@ instance ToJSON NextCommit where
   toJSON (NextCommit commit timingInProgressId) = object
     [ ("commit", toJSON commit)
     , ("timingInProgressId", toJSON timingInProgressId) ]
-  toEncoding NoNextCommit =  undefined
+  toEncoding NoNextCommit = toEncoding Null
   toEncoding (NextCommit commit timingInProgressId) = pairs $
     "commit" .= commit <>
     "timingInProgressId" .= timingInProgressId
