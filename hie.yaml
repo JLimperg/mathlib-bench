@@ -1,8 +1,10 @@
 cradle:
   stack:
-    - path: "lib"
-      component: "mathlib-bench:lib"
-    - path: "backend"
-      component: "mathlib-bench:exe:mathlib-bench-backend"
-    - path: "frontend"
-      component: "mathlib-bench:exe:mathlib-bench-frontend"
+    stackYaml: "stack.yaml"
+    components:
+      - path: "lib"
+        component: "mathlib-bench:lib"
+      - path: "supervisor"
+        component: "mathlib-bench:exe:mathlib-bench-supervisor"
+      - path: "runner"
+        component: "mathlib-bench:exe:mathlib-bench-runner"

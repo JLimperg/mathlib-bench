@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module MathlibBench.Frontend.Static
+module MathlibBench.Supervisor.Frontend.Static
 ( globalCss
 ) where
 

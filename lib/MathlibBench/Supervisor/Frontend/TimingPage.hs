@@ -2,29 +2,31 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Main (main) where
+module MathlibBench.Supervisor.Frontend.TimingPage
+( Timing(..)
+, makeTimingPage
+) where
 
 import           Prelude hiding (head, id, div)
 
-import           Control.Monad.IO.Class (liftIO)
 import qualified Data.ByteString.Lazy as BL
 import           Data.Fixed (Centi)
 import           Data.Text (Text)
 import qualified Data.Text as T
 import           Data.Time
   (NominalDiffTime, nominalDiffTimeToSeconds, formatTime, defaultTimeLocale)
-import           Database.SQLite.Simple (Connection, query_, withConnection)
 import           Text.Blaze.Html4.Strict hiding (map)
 import           Text.Blaze.Html4.Strict.Attributes hiding (title)
 import qualified Text.Blaze.Html4.Strict.Attributes as Attr
 import qualified Text.Blaze.Renderer.Utf8 as BlazeUtf8
-import           Web.Scotty (ActionM, scotty, get)
-import qualified Web.Scotty as Scotty
 
-import MathlibBench.Config
-import MathlibBench.Frontend.Config
-import MathlibBench.Frontend.Static
+import MathlibBench.Supervisor.Config
 import MathlibBench.Types
+
+data Timing = Timing
+  { timingCommit :: CommitHash
+  , timingElapsed :: ElapsedTimeMillis
+  }
 
 data PreviousTiming = PreviousTiming
   { previousTimingCommit :: CommitHash
@@ -59,9 +61,6 @@ timingsToDisplayTimings [] = []
 timingsToDisplayTimings timings
   = zipWith makeDisplayTiming timings (tail timings) ++
       [DisplayTiming (last timings) Nothing]
-
-loadTimings :: Connection -> IO [Timing]
-loadTimings conn = query_ conn "SELECT * FROM timings ORDER BY id DESC"
 
 formatElapsedTime :: ElapsedTimeMillis -> Html
 formatElapsedTime
@@ -139,24 +138,5 @@ renderTimings timings = docTypeHtml $ do
         th "time change %"
       mconcat $ map renderDisplayTiming timings
 
-makeTimingPage :: Connection -> IO BL.ByteString
-makeTimingPage conn = do
-  timings <- loadTimings conn
-  pure $ BlazeUtf8.renderMarkup $ renderTimings $ timingsToDisplayTimings timings
-
-setContentTypeHtml :: ActionM ()
-setContentTypeHtml = Scotty.setHeader "Content-Type" "text/html; charset=utf-8"
-
-setContentTypeCss :: ActionM ()
-setContentTypeCss = Scotty.setHeader "Content-Type" "text/css; charset=utf-8"
-
-main :: IO ()
-main = scotty 8080 $ do
-  get "/" $ do
-    page <- liftIO $ withConnection _SQLITE_FILE makeTimingPage
-    setContentTypeHtml
-    Scotty.raw page
-
-  get "/global.css" $ do
-    setContentTypeCss
-    Scotty.raw $ BL.fromStrict globalCss
+makeTimingPage :: [Timing] -> BL.ByteString
+makeTimingPage = BlazeUtf8.renderMarkup . renderTimings . timingsToDisplayTimings

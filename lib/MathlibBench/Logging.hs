@@ -1,7 +1,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module MathlibBench.Backend.Logging
+module MathlibBench.Logging
 ( setupLogging
 , LogSeverity(..)
 , logMsg

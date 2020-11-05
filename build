@@ -1,0 +1,20 @@
+#!/bin/bash
+
+USAGE="Usage: build <runner|supervisor>"
+
+function die {
+  echo $0
+  exit 1
+}
+
+target=$1
+
+test -n "$1" || die "$USAGE"
+
+if test "$target" == "supervisor"; then
+  docker build . -t jlimperg/mathlib-bench-supervisor --target supervisor
+elif test "$target" == "runner"; then
+  docker build . -t jlimperg/mathlib-bench-runner --target runner
+else
+  die "$USAGE"
+fi
