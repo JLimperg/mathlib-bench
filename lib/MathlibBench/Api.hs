@@ -35,14 +35,17 @@ data FinishedTiming = FinishedTiming
   }
 
 instance FromJSON FinishedTiming where
-  parseJSON = withObject "FinishedTiming" $ \v -> FinishedTiming <$>
-    v .: "commit" <*>
-    v .: "elapsed" <*>
-    v .: "inProgressId"
+  parseJSON = withObject "FinishedTiming" $ \v -> FinishedTiming
+    <$> v .: "commit"
+    <*> v .: "elapsed"
+    <*> v .: "inProgressId"
 
 instance ToJSON FinishedTiming where
   toJSON (FinishedTiming commit elapsed inProgressId) = object
-    [ ("commit", toJSON commit), ("elapsed", toJSON elapsed)
+    [ ("commit", toJSON commit)
+    , ("elapsed", toJSON elapsed)
     , ("inProgressId", toJSON inProgressId) ]
   toEncoding (FinishedTiming commit elapsed inProgressId) = pairs $
-    "commit" .= commit <> "elapsed" .= elapsed <> "inProgressId" .= inProgressId
+    "commit" .= commit <>
+    "elapsed" .= elapsed <>
+    "inProgressId" .= inProgressId
