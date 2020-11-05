@@ -15,9 +15,6 @@ _WORKDIR = _ROOTDIR </> "work"
 _SQLITE_FILE :: FilePath
 _SQLITE_FILE = _ROOTDIR </> "db.sqlite"
 
-_MATHLIB_GIT_URL :: String
-_MATHLIB_GIT_URL = "https://github.com/leanprover-community/mathlib"
-
 _DIFF_BASE_URL :: String
 _DIFF_BASE_URL = "https://github.com/leanprover-community/mathlib/compare"
 

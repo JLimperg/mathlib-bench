@@ -35,6 +35,7 @@ library
                      , MathlibBench.Supervisor.Main
   other-modules:       MathlibBench.Api
                      , MathlibBench.Command
+                     , MathlibBench.Config
                      , MathlibBench.GitRepo
                      , MathlibBench.GitRepo.Lock
                      , MathlibBench.Logging

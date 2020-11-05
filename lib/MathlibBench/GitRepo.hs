@@ -18,10 +18,10 @@ import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Encoding as TL
 import           System.Directory (doesDirectoryExist, removeDirectoryRecursive)
 
-import           MathlibBench.Logging
 import           MathlibBench.Command
-import           MathlibBench.Supervisor.Config (_MATHLIB_GIT_URL)
+import           MathlibBench.Config (_GITHUB_REPO)
 import           MathlibBench.GitRepo.Lock
+import           MathlibBench.Logging
 import           MathlibBench.Types
 
 gitInWorkdir_ :: FilePath -> GitRepoLocked -> [String] -> IO ()
@@ -38,7 +38,7 @@ setupGitRepo workdir = do
     logInfo $ "removing old work directory " <> TL.pack workdir
     removeDirectoryRecursive workdir
   logInfo $ "cloning mathlib in " <> TL.pack workdir
-  cmd_ "git" ["clone", _MATHLIB_GIT_URL, workdir]
+  cmd_ "git" ["clone", _GITHUB_REPO, workdir]
 
 pull :: FilePath -> GitRepoLocked -> IO ()
 pull workdir locked = gitInWorkdir_ workdir locked ["pull"]
