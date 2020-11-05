@@ -15,18 +15,18 @@ instance FromJSON NextCommit where
   parseJSON Null = pure NoNextCommit
   parseJSON (Object v) = NextCommit
     <$> v .: "commit"
-    <*> v .: "timingInProgressId"
+    <*> v .: "inProgressId"
   parseJSON v = unexpected v
 
 instance ToJSON NextCommit where
   toJSON NoNextCommit = Null
-  toJSON (NextCommit commit timingInProgressId) = object
+  toJSON (NextCommit commit inProgressId) = object
     [ ("commit", toJSON commit)
-    , ("timingInProgressId", toJSON timingInProgressId) ]
+    , ("inProgressId", toJSON inProgressId) ]
   toEncoding NoNextCommit = toEncoding Null
-  toEncoding (NextCommit commit timingInProgressId) = pairs $
+  toEncoding (NextCommit commit inProgressId) = pairs $
     "commit" .= commit <>
-    "timingInProgressId" .= timingInProgressId
+    "inProgressId" .= inProgressId
 
 data FinishedTiming = FinishedTiming
   { finishedTimingCommit :: CommitHash
@@ -38,11 +38,11 @@ instance FromJSON FinishedTiming where
   parseJSON = withObject "FinishedTiming" $ \v -> FinishedTiming <$>
     v .: "commit" <*>
     v .: "elapsed" <*>
-    v .: "inprogressId"
+    v .: "inProgressId"
 
 instance ToJSON FinishedTiming where
-  toJSON (FinishedTiming commit elapsed inprogressId) = object
+  toJSON (FinishedTiming commit elapsed inProgressId) = object
     [ ("commit", toJSON commit), ("elapsed", toJSON elapsed)
-    , ("inprogressId", toJSON inprogressId) ]
-  toEncoding (FinishedTiming commit elapsed inprogressId) = pairs $
-    "commit" .= commit <> "elapsed" .= elapsed <> "inprogressId" .= inprogressId
+    , ("inProgressId", toJSON inProgressId) ]
+  toEncoding (FinishedTiming commit elapsed inProgressId) = pairs $
+    "commit" .= commit <> "elapsed" .= elapsed <> "inProgressId" .= inProgressId
