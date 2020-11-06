@@ -16,6 +16,7 @@ import qualified MathlibBench.Api as Api
 import           MathlibBench.GitRepo (GitRepoLock)
 import qualified MathlibBench.GitRepo as Git
 import           MathlibBench.Logging
+import           MathlibBench.Secret (Secret)
 import           MathlibBench.Supervisor.Config
 import           MathlibBench.Supervisor.Db (Connection, withConnection)
 import qualified MathlibBench.Supervisor.Db as Db
@@ -47,8 +48,8 @@ setContentTypeHtml = Scotty.setHeader "Content-Type" "text/html; charset=utf-8"
 setContentTypeCss :: ActionM ()
 setContentTypeCss = Scotty.setHeader "Content-Type" "text/css; charset=utf-8"
 
-frontendMain :: GitRepoLock -> GitRepoTimestamp -> IO ()
-frontendMain lock timestamp = scotty _PORT $ do
+frontendMain :: GitRepoLock -> GitRepoTimestamp -> Secret -> IO ()
+frontendMain lock timestamp secret = scotty _PORT $ do
   get "/" $ do
     page <- liftIO $ withConnection $
       fmap (makeTimingPage . map (uncurry Timing)) . Db.fetchTimings
@@ -60,6 +61,7 @@ frontendMain lock timestamp = scotty _PORT $ do
     raw $ BL.fromStrict globalCss
 
   post "/next" $ do
+    Api.validateSecretHeader secret
     next <- liftIO $ withConnection $ \conn -> do
       updateCommits conn lock timestamp
       currentTime <- getUnixSeconds
@@ -80,6 +82,7 @@ frontendMain lock timestamp = scotty _PORT $ do
     json next
 
   post "/finished" $ do
+    Api.validateSecretHeader secret
     (Api.FinishedTiming commit elapsed inProgressId) <- jsonData
     liftIO $ withConnection $ \conn -> do
       Db.insertTiming conn commit elapsed

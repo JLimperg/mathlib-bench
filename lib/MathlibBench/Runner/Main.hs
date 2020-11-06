@@ -9,7 +9,7 @@ import qualified Data.Text.Lazy as TL
 import           Data.Time (defaultTimeLocale, formatTime)
 import           Data.Time.Clock.POSIX (getPOSIXTime)
 import           Network.HTTP.Simple
-  (HttpException,  setRequestBodyJSON, getResponseBody, httpJSON, httpNoBody )
+  (HttpException, getResponseBody, httpJSON, httpNoBody )
 import           System.Directory (withCurrentDirectory)
 
 import qualified MathlibBench.Api as Api
@@ -17,15 +17,18 @@ import           MathlibBench.Command
 import           MathlibBench.GitRepo (GitRepoLock)
 import qualified MathlibBench.GitRepo as Git
 import           MathlibBench.Logging
+import           MathlibBench.Runner.CmdArgs
 import           MathlibBench.Runner.Config
+import           MathlibBench.Secret (Secret)
 import           MathlibBench.Types
 
-getNextCommit :: IO Api.NextCommit
-getNextCommit = getResponseBody <$> httpJSON _NEXT_COMMIT_REQUEST
+getNextCommit :: Secret -> IO Api.NextCommit
+getNextCommit secret = getResponseBody <$>
+  httpJSON (Api.emptyPostRequest secret _NEXT_COMMIT_URL)
 
-reportTiming :: Api.FinishedTiming -> IO ()
-reportTiming timing
-  = void $ httpNoBody $ setRequestBodyJSON timing _FINISHED_REQUEST
+reportTiming :: Secret -> Api.FinishedTiming -> IO ()
+reportTiming secret timing = void $ httpNoBody $
+  Api.jsonPostRequest secret timing _FINISHED_URL
 
 timeBuild :: GitRepoLock -> CommitHash -> IO ElapsedTimeMillis
 timeBuild lock commit =
@@ -47,16 +50,17 @@ timeBuild lock commit =
 
 main :: IO ()
 main = do
+  (CmdArgs secret) <- parseCmdArgs
   setupLogging
   Git.setupGitRepo _WORKDIR
   lock <- Git.newGitRepoLock
   forever $ handle exceptionHandler $ do
-    nextCommit <- getNextCommit
+    nextCommit <- getNextCommit secret
     case nextCommit of
       Api.NoNextCommit -> pure ()
       Api.NextCommit commit inProgressId -> do
         elapsed <- timeBuild lock commit
-        reportTiming $ Api.FinishedTiming commit elapsed inProgressId
+        reportTiming secret $ Api.FinishedTiming commit elapsed inProgressId
   where
     exceptionHandler :: HttpException -> IO ()
     exceptionHandler e = do

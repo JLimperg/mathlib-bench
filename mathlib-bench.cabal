@@ -26,11 +26,14 @@ library
                      , filepath == 1.4.*
                      , file-embed == 0.0.*
                      , http-conduit == 2.3.*
+                     , optparse-applicative == 0.15.*
+                     , random == 1.1.*
                      , scotty == 0.11.*
                      , sqlite-simple == 0.4.*
                      , text == 1.2.*
                      , time == 1.9.*
                      , typed-process == 0.2.*
+                     , vector == 0.12.*
   exposed-modules:     MathlibBench.Runner.Main
                      , MathlibBench.Supervisor.Main
   other-modules:       MathlibBench.Api
@@ -39,7 +42,10 @@ library
                      , MathlibBench.GitRepo
                      , MathlibBench.GitRepo.Lock
                      , MathlibBench.Logging
+                     , MathlibBench.Runner.CmdArgs
                      , MathlibBench.Runner.Config
+                     , MathlibBench.Secret
+                     , MathlibBench.Supervisor.CmdArgs
                      , MathlibBench.Supervisor.Config
                      , MathlibBench.Supervisor.Db
                      , MathlibBench.Supervisor.Frontend

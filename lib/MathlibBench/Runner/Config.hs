@@ -2,7 +2,6 @@
 
 module MathlibBench.Runner.Config where
 
-import           Network.HTTP.Client.Conduit (Request(..), parseRequest_)
 import           System.FilePath ((</>))
 
 _LEANPKG :: FilePath
@@ -17,15 +16,11 @@ _MEM_LIMIT_MB = 20000
 _SUPERVISOR_BASE_URL :: String
 _SUPERVISOR_BASE_URL = "http://mathlib-bench.limperg.de"
 
-_NEXT_COMMIT_REQUEST :: Request
-_NEXT_COMMIT_REQUEST
-  = (parseRequest_ (_SUPERVISOR_BASE_URL ++ "/next"))
-      { method = "POST" }
+_NEXT_COMMIT_URL :: String
+_NEXT_COMMIT_URL = _SUPERVISOR_BASE_URL ++ "/next"
 
-_FINISHED_REQUEST :: Request
-_FINISHED_REQUEST
-  = (parseRequest_ (_SUPERVISOR_BASE_URL ++ "/finished"))
-      { method = "POST" }
+_FINISHED_URL :: String
+_FINISHED_URL = _SUPERVISOR_BASE_URL ++ "/finished"
 
 _ROOTDIR :: FilePath
 _ROOTDIR = "/mathlib-bench/runner"

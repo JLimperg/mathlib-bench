@@ -1,11 +1,51 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module MathlibBench.Api where
+module MathlibBench.Api
+( emptyPostRequest
+, jsonPostRequest
+, validateSecretHeader
+, NextCommit(..)
+, FinishedTiming(..)
+) where
 
 import           Data.Aeson
 import           Data.Aeson.Types (unexpected)
+import           Data.String (fromString)
+import qualified Data.Text as T
+import           Network.HTTP.Simple
+  ( setRequestMethod,  Request, parseRequest_, setRequestBodyJSON
+  , addRequestHeader )
+import           Web.Scotty (ActionM)
+import qualified Web.Scotty as Scotty
 
+import           MathlibBench.Config (_SECRET_HEADER)
+import           MathlibBench.Secret (secretToLazyText, secretToText, Secret(fromSecret))
 import           MathlibBench.Types (CommitHash, ElapsedTimeMillis)
+import Control.Monad (unless)
+
+setSecretHeader :: Secret -> Request -> Request
+setSecretHeader secret
+  = addRequestHeader (fromString _SECRET_HEADER) (fromSecret secret)
+
+emptyPostRequest :: Secret -> String -> Request
+emptyPostRequest secret
+  = setSecretHeader secret
+  . setRequestMethod "POST"
+  . parseRequest_
+
+jsonPostRequest :: ToJSON a => Secret -> a -> String -> Request
+jsonPostRequest secret body
+  = setRequestBodyJSON body . emptyPostRequest secret
+
+validateSecretHeader :: Secret -> ActionM ()
+validateSecretHeader expected = do
+  header <- Scotty.header $ fromString _SECRET_HEADER
+  case header of
+    Nothing ->
+      Scotty.raise $ "missing secret header: " <> fromString _SECRET_HEADER
+    (Just headerVal) ->
+      unless (headerVal == secretToLazyText expected) $
+        Scotty.raise "incorrect secret"
 
 data NextCommit
   = NoNextCommit
