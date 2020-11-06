@@ -1,20 +1,29 @@
 #!/bin/bash
 
-USAGE="Usage: build <runner|supervisor>"
+USAGE="Usage: build [runner|supervisor]"
 
 function die {
-  echo $0
+  echo $1
   exit 1
 }
 
-target=$1
+function build {
+  docker build . -t jlimperg/mathlib-bench-"$1" --target "$1"
+}
 
-test -n "$1" || die "$USAGE"
+if test -z "$1"; then
+  target="none"
+else
+  target="$1"
+fi
 
-if test "$target" == "supervisor"; then
-  docker build . -t jlimperg/mathlib-bench-supervisor --target supervisor
+if test "$target" == "none"; then
+  build supervisor && \
+  build runner
+elif test "$target" == "supervisor"; then
+  build supervisor
 elif test "$target" == "runner"; then
-  docker build . -t jlimperg/mathlib-bench-runner --target runner
+  build runner
 else
   die "$USAGE"
 fi
