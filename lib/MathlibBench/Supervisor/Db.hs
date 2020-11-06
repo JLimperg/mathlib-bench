@@ -51,7 +51,7 @@ createDb = do
       ]
     execute_ conn $ fromString $ unwords
       [ "CREATE TABLE IF NOT EXISTS inprogress ("
-      , "id INTEGER PRIMARY KEY,"
+      , "id INTEGER PRIMARY KEY AUTOINCREMENT,"
       , "commit_id INTEGER NOT NULL,"
       , "start_time INTEGER NOT NULL,"
       , "FOREIGN KEY(commit_id) REFERENCES commits(id))"
