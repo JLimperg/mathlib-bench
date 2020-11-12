@@ -48,8 +48,9 @@ setContentTypeHtml = Scotty.setHeader "Content-Type" "text/html; charset=utf-8"
 setContentTypeCss :: ActionM ()
 setContentTypeCss = Scotty.setHeader "Content-Type" "text/css; charset=utf-8"
 
-frontendMain :: GitRepoLock -> GitRepoTimestamp -> Secret -> ConnectInfo -> IO ()
-frontendMain lock timestamp secret connInfo = scotty _PORT $ do
+frontendMain ::
+  GitRepoLock -> GitRepoTimestamp -> Secret -> ConnectInfo -> Int -> IO ()
+frontendMain lock timestamp secret connInfo port = scotty port $ do
   get "/" $ do
     page <- liftIO $ withConnection connInfo $
       fmap (makeTimingPage . map (uncurry Timing)) . Db.fetchTimings

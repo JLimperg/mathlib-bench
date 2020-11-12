@@ -16,7 +16,7 @@ import           MathlibBench.Supervisor.GitRepo.Timestamp (newGitRepoTimestamp)
 
 main :: IO ()
 main = do
-  (CmdArgs secret dbPassword) <- parseCmdArgs
+  (CmdArgs secret dbPassword port) <- parseCmdArgs
   let connInfo = _DATABASE_CONNECTION_INFO { connectPassword = dbPassword }
   setupLogging
   logInfo "====== mathlib-bench starting ======"
@@ -26,4 +26,4 @@ main = do
   setupGitRepo _WORKDIR
   gitRepoLock <- newGitRepoLock
   gitRepoTimestamp <- newGitRepoTimestamp
-  frontendMain gitRepoLock gitRepoTimestamp secret connInfo
+  frontendMain gitRepoLock gitRepoTimestamp secret connInfo port
