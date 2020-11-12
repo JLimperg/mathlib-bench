@@ -11,7 +11,6 @@ module MathlibBench.Api
 import           Data.Aeson
 import           Data.Aeson.Types (unexpected)
 import           Data.String (fromString)
-import qualified Data.Text as T
 import           Network.HTTP.Simple
   ( setRequestMethod,  Request, parseRequest_, setRequestBodyJSON
   , addRequestHeader )
@@ -19,7 +18,7 @@ import           Web.Scotty (ActionM)
 import qualified Web.Scotty as Scotty
 
 import           MathlibBench.Config (_SECRET_HEADER)
-import           MathlibBench.Secret (secretToLazyText, secretToText, Secret(fromSecret))
+import           MathlibBench.Secret (Secret, secretToLazyText, fromSecret)
 import           MathlibBench.Types (CommitHash, ElapsedTimeMillis)
 import Control.Monad (unless)
 

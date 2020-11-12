@@ -8,6 +8,7 @@ import           Control.Monad (void, unless)
 import           Control.Monad.IO.Class (liftIO)
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text.Lazy as TL
+import           Data.Time.Clock (getCurrentTime, addUTCTime)
 import           Web.Scotty
   ( ActionM, scotty, raw, text, jsonData, get, post, json )
 import qualified Web.Scotty as Scotty
@@ -18,7 +19,7 @@ import qualified MathlibBench.GitRepo as Git
 import           MathlibBench.Logging
 import           MathlibBench.Secret (Secret)
 import           MathlibBench.Supervisor.Config
-import           MathlibBench.Supervisor.Db (Connection, withConnection)
+import           MathlibBench.Supervisor.Db (Connection, ConnectInfo, withConnection)
 import qualified MathlibBench.Supervisor.Db as Db
 import           MathlibBench.Supervisor.Frontend.Static (globalCss)
 import           MathlibBench.Supervisor.Frontend.TimingPage
@@ -26,7 +27,6 @@ import           MathlibBench.Supervisor.Frontend.TimingPage
 import           MathlibBench.Supervisor.GitRepo.Timestamp
   ( GitRepoTimestamp, updateGitRepoUnlessUpToDate )
 import           MathlibBench.Types
-import           MathlibBench.UnixSeconds
 
 updateCommits :: Connection -> GitRepoLock -> GitRepoTimestamp -> IO ()
 updateCommits conn lock timestamp =
@@ -48,10 +48,10 @@ setContentTypeHtml = Scotty.setHeader "Content-Type" "text/html; charset=utf-8"
 setContentTypeCss :: ActionM ()
 setContentTypeCss = Scotty.setHeader "Content-Type" "text/css; charset=utf-8"
 
-frontendMain :: GitRepoLock -> GitRepoTimestamp -> Secret -> IO ()
-frontendMain lock timestamp secret = scotty _PORT $ do
+frontendMain :: GitRepoLock -> GitRepoTimestamp -> Secret -> ConnectInfo -> IO ()
+frontendMain lock timestamp secret connInfo = scotty _PORT $ do
   get "/" $ do
-    page <- liftIO $ withConnection $
+    page <- liftIO $ withConnection connInfo $
       fmap (makeTimingPage . map (uncurry Timing)) . Db.fetchTimings
     setContentTypeHtml
     raw page
@@ -62,12 +62,12 @@ frontendMain lock timestamp secret = scotty _PORT $ do
 
   post "/next" $ do
     Api.validateSecretHeader secret
-    next <- liftIO $ withConnection $ \conn -> do
+    next <- liftIO $ withConnection connInfo $ \conn -> do
       updateCommits conn lock timestamp
-      currentTime <- getUnixSeconds
-      Db.pruneTimingsInProgress conn $ currentTime - _TIMING_TIMEOUT
+      currentTime <- getCurrentTime
+      Db.pruneTimingsInProgress conn $
+        addUTCTime (negate _TIMING_TIMEOUT) currentTime
       nextCommit <- Db.fetchLastUntimedCommit conn
-      currentTime <- liftIO getUnixSeconds
       case nextCommit of
         Nothing -> do
           logInfo "no commit ready for timing"
@@ -84,7 +84,7 @@ frontendMain lock timestamp secret = scotty _PORT $ do
   post "/finished" $ do
     Api.validateSecretHeader secret
     (Api.FinishedTiming commit elapsed inProgressId) <- jsonData
-    liftIO $ withConnection $ \conn -> do
+    liftIO $ withConnection connInfo $ \conn -> do
       Db.insertTiming conn commit elapsed
       Db.deleteTimingInProgress conn inProgressId
     text ""

@@ -10,11 +10,13 @@ import           MathlibBench.Secret (Secret, parseSecret)
 
 data CmdArgs = CmdArgs
   { cmdArgsSecret :: Secret
+  , cmdArgsDatabasePassword :: String
   }
 
 optsParser :: Parser CmdArgs
 optsParser = CmdArgs
   <$> argument (maybeReader $ parseSecret . fromString) (metavar "SECRET")
+  <*> argument str (metavar "DB_PASSWORD")
 
 programInfo :: ParserInfo CmdArgs
 programInfo = info optsParser

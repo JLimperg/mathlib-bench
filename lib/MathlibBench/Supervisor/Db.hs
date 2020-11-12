@@ -2,6 +2,7 @@
 
 module MathlibBench.Supervisor.Db
 ( Connection
+, ConnectInfo(..)
 , withConnection
 , createDb
 , fetchTimings
@@ -15,80 +16,74 @@ module MathlibBench.Supervisor.Db
 , pruneTimingsInProgress
 )where
 
+import           Control.Exception (bracket)
+import           Control.Monad (void)
 import           Data.Coerce (coerce)
 import           Data.Maybe (listToMaybe)
 import           Data.String (IsString(fromString))
-import qualified Data.Text.Lazy as TL
-import           Database.SQLite.Simple
-  ( Connection, Only(..), execute, execute_, executeMany, query, query_ )
-import qualified Database.SQLite.Simple as Sqlite
+import           Data.Time (UTCTime)
+import           Database.PostgreSQL.Simple
+  ( Connection, ConnectInfo, Only(..), execute, execute_, executeMany, query, query_ )
+import qualified Database.PostgreSQL.Simple as Db
 
 import           MathlibBench.Logging
-import           MathlibBench.Supervisor.Config (_SQLITE_FILE)
 import           MathlibBench.Types
-import           MathlibBench.UnixSeconds (UnixSeconds)
 
-withConnection :: (Connection -> IO a) -> IO a
-withConnection f = Sqlite.withConnection _SQLITE_FILE $ \conn -> do
-  execute_ conn "PRAGMA foreign_keys = ON"
-  f conn
+withConnection :: ConnectInfo -> (Connection -> IO a) -> IO a
+withConnection connInfo = bracket (Db.connect connInfo) (Db.close)
 
-createDb :: IO ()
-createDb = do
-  logInfo $ "setting up database in " <> TL.pack _SQLITE_FILE
-  withConnection $ \conn -> do
-    execute_ conn $ fromString $ unwords
-      [ "CREATE TABLE IF NOT EXISTS commits("
-      , "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-      , "commit_hash TEXT NOT NULL UNIQUE)"
-      ]
-    execute_ conn $ fromString $ unwords
-      [ "CREATE TABLE IF NOT EXISTS timings ("
-      , "id INTEGER PRIMARY KEY,"
-      , "commit_id INTEGER NOT NULL,"
-      , "elapsed_millis INTEGER NOT NULL,"
-      , "FOREIGN KEY(commit_id) REFERENCES commits(id))"
-      ]
-    execute_ conn $ fromString $ unwords
-      [ "CREATE TABLE IF NOT EXISTS inprogress ("
-      , "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-      , "commit_id INTEGER NOT NULL,"
-      , "start_time INTEGER NOT NULL,"
-      , "FOREIGN KEY(commit_id) REFERENCES commits(id))"
-      ]
+createDb :: Connection -> IO ()
+createDb conn = do
+  logInfo $ "setting up database"
+  void $ execute_ conn $ fromString $ unwords
+    [ "create table if not exists commits("
+    , "id serial primary key,"
+    , "commit_hash text not null unique)"
+    ]
+  void $ execute_ conn $ fromString $ unwords
+    [ "create table if not exists timings ("
+    , "id serial primary key,"
+    , "commit_id integer not null references commits(id),"
+    , "elapsed_millis integer not null)"
+    ]
+  void $ execute_ conn $ fromString $ unwords
+    [ "create table if not exists inprogress ("
+    , "id serial primary key,"
+    , "commit_id integer not null references commits(id),"
+    , "start_time timestamp with time zone not null)"
+    ]
 
 fetchTimings :: Connection -> IO [(CommitHash, ElapsedTimeMillis)]
 fetchTimings conn = query_ conn $ fromString $ unwords
-  [ "SELECT commits.commit_hash, timings.elapsed_millis"
-  , "FROM timings JOIN commits ON timings.commit_id = commits.id"
-  , "ORDER BY commits.id DESC"
+  [ "select commits.commit_hash, timings.elapsed_millis"
+  , "from timings join commits on timings.commit_id = commits.id"
+  , "order by commits.id desc"
   ]
 
 hasTimingForCommit :: Connection -> CommitHash -> IO Bool
 hasTimingForCommit conn commit = do
   r <- query conn
     (fromString $ unwords
-      [ "SELECT id"
-      , "FROM timings JOIN commits ON timings.commit_id = commits.id"
-      , "WHERE commits.commit_hash = ?"
+      [ "select id"
+      , "from timings JOIN commits ON timings.commit_id = commits.id"
+      , "where commits.commit_hash = ?"
       ])
     (Only commit)
     :: IO [Only Int]
   pure $ not $ null r
 
 insertTiming :: Connection -> CommitHash -> ElapsedTimeMillis -> IO ()
-insertTiming conn commit time =
-    execute conn
-      (fromString $ unwords
-        [ "INSERT INTO timings (commit_id, elapsed_millis)"
-        , "VALUES ((SELECT id FROM commits WHERE commit_hash = ?), ?)"
-        ])
-      (commit, time)
+insertTiming conn commit time = void $ execute conn
+  (fromString $ unwords
+    [ "insert into timings (commit_id, elapsed_millis)"
+    , "values ((select id from commits where commit_hash = ?), ?)"
+    ])
+  (commit, time)
 
 fetchLastCommit :: Connection -> IO (Maybe CommitHash)
 fetchLastCommit conn = do
   r <- query_ conn
-    "SELECT commit_hash FROM commits ORDER BY id DESC LIMIT 1"
+    "select commit_hash from commits order by id desc limit 1"
     :: IO [Only CommitHash]
   pure $ fromOnly <$> listToMaybe r
 
@@ -98,39 +93,40 @@ fetchLastUntimedCommit conn = do
   pure $ fromOnly <$> listToMaybe r
   where
     thequery = fromString $ unwords
-      [ "SELECT commit_hash"
-      , "FROM commits"
-      , "WHERE NOT EXISTS ("
-      , "  SELECT commit_id FROM inprogress"
-      , "  WHERE inprogress.commit_id = commits.id)"
-      , "AND NOT EXISTS ("
-      , "  SELECT commit_id FROM timings"
-      , "  WHERE timings.commit_id = commits.id)"
-      , "ORDER BY id DESC"
-      , "LIMIT 1"
+      [ "select commit_hash"
+      , "from commits"
+      , "where not exists ("
+      , "  select commit_id from inprogress"
+      , "  where inprogress.commit_id = commits.id)"
+      , "and not exists ("
+      , "  select commit_id FROM timings"
+      , "  where timings.commit_id = commits.id)"
+      , "order by id desc"
+      , "limit 1"
       ]
 
 insertCommits :: Connection -> [CommitHash] -> IO ()
-insertCommits conn commits = executeMany conn
-  "INSERT INTO commits (commit_hash) VALUES (?)"
+insertCommits conn commits = void $ executeMany conn
+  "insert into commits (commit_hash) values (?)"
   (coerce commits :: [Only CommitHash])
 
-insertTimingInProgress :: Connection -> CommitHash -> UnixSeconds -> IO Int
+insertTimingInProgress :: Connection -> CommitHash -> UTCTime -> IO Int
 insertTimingInProgress conn commit startTime = do
-  execute conn
+  [Only rid] <- query conn
     (fromString $ unwords
-      [ "INSERT INTO inprogress (commit_id, start_time)"
-      , "VALUES ((SELECT id FROM commits WHERE commit_hash = ?), ?)"
+      [ "insert into inprogress (commit_id, start_time)"
+      , "values ((select id from commits where commit_hash = ?), ?)"
+      , "returning id"
       ])
     (commit, startTime)
-  fromIntegral <$> Sqlite.lastInsertRowId conn
+  pure rid
 
 deleteTimingInProgress :: Connection -> Int -> IO ()
-deleteTimingInProgress conn id_ = execute conn
-  "DELETE FROM inprogress WHERE id = ?"
+deleteTimingInProgress conn id_ = void $ execute conn
+  "delete from inprogress where id = ?"
   (Only id_)
 
-pruneTimingsInProgress :: Connection -> UnixSeconds -> IO ()
-pruneTimingsInProgress conn timeout = execute conn
-  "DELETE FROM inprogress WHERE start_time < ?"
+pruneTimingsInProgress :: Connection -> UTCTime -> IO ()
+pruneTimingsInProgress conn timeout = void $ execute conn
+  "delete from inprogress where start_time < ?"
   (Only timeout)

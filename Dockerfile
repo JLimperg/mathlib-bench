@@ -3,7 +3,10 @@
 FROM haskell:8.8.4-buster AS builder
 WORKDIR /source
 
-# build dependencies
+# build system dependencies
+RUN apt-get update && apt-get install -y libpq-dev
+
+# build Haskell dependencies
 COPY LICENSE README.md Setup.hs mathlib-bench.cabal stack.yaml stack.yaml.lock /source/
 RUN stack build --no-interleaved-output --only-dependencies
 
@@ -33,6 +36,6 @@ ENTRYPOINT ["/binaries/mathlib-bench-runner"]
 
 FROM debian:buster-20201012 AS supervisor
 RUN mkdir -p /mathlib-bench/supervisor
-RUN apt-get update && apt-get install -y git
+RUN apt-get update && apt-get install -y git libpq-dev
 COPY --from=builder /binaries/mathlib-bench-supervisor /binaries/
 ENTRYPOINT ["/binaries/mathlib-bench-supervisor"]

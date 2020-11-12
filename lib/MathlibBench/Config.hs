@@ -2,8 +2,8 @@ module MathlibBench.Config where
 
 import           Data.Char (ord)
 import           Data.Word (Word8)
-import qualified Data.Vector.Unboxed as V
 import           Data.Vector.Unboxed (Vector)
+import qualified Data.Vector.Unboxed as V
 
 _GITHUB_REPO :: String
 _GITHUB_REPO = "https://github.com/leanprover-community/mathlib"
