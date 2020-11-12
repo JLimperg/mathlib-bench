@@ -30,11 +30,11 @@ import           MathlibBench.Logging
 import           MathlibBench.Types
 
 withConnection :: ConnectInfo -> (Connection -> IO a) -> IO a
-withConnection connInfo = bracket (Db.connect connInfo) (Db.close)
+withConnection connInfo = bracket (Db.connect connInfo) Db.close
 
 createDb :: Connection -> IO ()
 createDb conn = do
-  logInfo $ "setting up database"
+  logInfo "setting up database"
   void $ execute_ conn $ fromString $ unwords
     [ "create table if not exists commits("
     , "id serial primary key,"

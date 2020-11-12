@@ -8,7 +8,7 @@ import           Options.Applicative
 
 import           MathlibBench.Secret (Secret, parseSecret)
 
-data CmdArgs = CmdArgs
+newtype CmdArgs = CmdArgs
   { cmdArgsSecret :: Secret
   }
 

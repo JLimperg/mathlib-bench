@@ -1,5 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module MathlibBench.Supervisor.Frontend.TimingPage
@@ -95,7 +93,7 @@ renderDisplayTiming timing@(DisplayTiming current previous)
 
     commit :: Html
     commit = mconcat
-      [ a (text $ T.take 8 $ currentCommit)
+      [ a (text $ T.take 8 currentCommit)
         ! href (stringValue $ _COMMIT_BASE_URL ++ "/" ++ T.unpack currentCommit)
         ! Attr.title (textValue currentCommit)
       , renderDiffLink (timingCommit current) (previousTimingCommit <$> previous)
