@@ -8,7 +8,7 @@ import           Control.Monad (void, unless)
 import           Control.Monad.IO.Class (liftIO)
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text.Lazy as TL
-import           Data.Time.Clock (UTCTime(..), getCurrentTime, addUTCTime)
+import           Data.Time.Clock (getCurrentTime, addUTCTime)
 import           Web.Scotty
   ( ActionM, scotty, raw, text, jsonData, get, post, json )
 import qualified Web.Scotty as Scotty
@@ -90,6 +90,9 @@ frontendMain lock timestamp secret connInfo port = scotty port $ do
   post "/finished" $ do
     Api.validateSecretHeader secret
     (Api.FinishedTiming commit inProgressId startTime endTime runnerId) <- jsonData
+    liftIO $ logInfo $ mconcat
+       [ "runner \"", TL.fromStrict runnerId, "\" reports timing for commit "
+       , TL.fromStrict (fromCommitHash commit) ]
     liftIO $ withConnection connInfo $ \conn -> do
       Db.insertTiming conn commit startTime endTime runnerId
       Db.deleteTimingInProgress conn inProgressId
