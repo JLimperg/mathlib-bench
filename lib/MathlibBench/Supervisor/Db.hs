@@ -21,7 +21,7 @@ import           Control.Exception (bracket)
 import           Control.Monad (void)
 import           Data.Coerce (coerce)
 import           Data.Maybe (listToMaybe)
-import           Data.String (IsString(fromString))
+import           Data.Text (Text)
 import           Data.Time (UTCTime)
 import           Database.PostgreSQL.Simple
   ( Connection, ConnectInfo, Only(..), execute, execute_, executeMany, query, query_ )
@@ -40,13 +40,16 @@ createDb conn = do
   void $ execute_ conn
     [str|create table if not exists commits
         |( id serial primary key
-        |, commit_hash text not null unique )
+        |, commit_hash text not null unique
+        |, commit_time timestamp with time zone not null )
         |]
   void $ execute_ conn
     [str|create table if not exists timings
         |( id serial primary key
         |, commit_id integer not null references commits(id)
-        |, elapsed_millis integer not null )
+        |, start_time timestamp with time zone not null
+        |, end_time timestamp with time zone not null
+        |, runner text not null )
         |]
   void $ execute_ conn
     [str|create table if not exists inprogress
@@ -55,9 +58,10 @@ createDb conn = do
         |, start_time timestamp with time zone not null )
         |]
 
-fetchTimings :: Connection -> IO [(CommitHash, ElapsedTimeMillis)]
+fetchTimings :: Connection -> IO [(CommitHash, UTCTime, UTCTime, UTCTime, Text)]
 fetchTimings conn = query_ conn
-  [str|select commits.commit_hash, timings.elapsed_millis
+  [str|select commits.commit_hash, commits.commit_time, timings.start_time,
+      |  timings.end_time, timings.runner
       |from timings join commits on timings.commit_id = commits.id
       |order by commits.id desc
       |]
@@ -73,12 +77,12 @@ hasTimingForCommit conn commit = do
     :: IO [Only Int]
   pure $ not $ null r
 
-insertTiming :: Connection -> CommitHash -> ElapsedTimeMillis -> IO ()
-insertTiming conn commit time = void $ execute conn
-  [str|insert into timings (commit_id, elapsed_millis)
-      |values ((select id from commits where commit_hash = ?), ?)
+insertTiming :: Connection -> CommitHash -> UTCTime -> UTCTime -> Text -> IO ()
+insertTiming conn commit startTime endTime runner = void $ execute conn
+  [str|insert into timings (commit_id, start_time, end_time, runner)
+      |values ((select id from commits where commit_hash = ?), ?, ?, ?)
       |]
-  (commit, time)
+  (commit, startTime, endTime, runner)
 
 fetchLastCommit :: Connection -> IO (Maybe CommitHash)
 fetchLastCommit conn = do
@@ -103,10 +107,10 @@ fetchLastUntimedCommit conn = do
     :: IO [Only CommitHash]
   pure $ fromOnly <$> listToMaybe r
 
-insertCommits :: Connection -> [CommitHash] -> IO ()
+insertCommits :: Connection -> [(CommitHash, UTCTime)] -> IO ()
 insertCommits conn commits = void $ executeMany conn
-  "insert into commits (commit_hash) values (?)"
-  (coerce commits :: [Only CommitHash])
+  "insert into commits (commit_hash, commit_time) values (?, ?)"
+  commits
 
 insertTimingInProgress :: Connection -> CommitHash -> UTCTime -> IO Int
 insertTimingInProgress conn commit startTime = do

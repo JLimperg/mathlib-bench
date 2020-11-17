@@ -8,9 +8,12 @@ module MathlibBench.Api
 , FinishedTiming(..)
 ) where
 
+import           Control.Monad (unless)
 import           Data.Aeson
 import           Data.Aeson.Types (unexpected)
 import           Data.String (fromString)
+import           Data.Text (Text)
+import           Data.Time (UTCTime)
 import           Network.HTTP.Simple
   ( setRequestMethod,  Request, parseRequest_, setRequestBodyJSON
   , addRequestHeader )
@@ -19,8 +22,7 @@ import qualified Web.Scotty as Scotty
 
 import           MathlibBench.Config (_SECRET_HEADER)
 import           MathlibBench.Secret (Secret, secretToLazyText, fromSecret)
-import           MathlibBench.Types (CommitHash, ElapsedTimeMillis)
-import Control.Monad (unless)
+import           MathlibBench.Types (CommitHash)
 
 setSecretHeader :: Secret -> Request -> Request
 setSecretHeader secret
@@ -69,22 +71,30 @@ instance ToJSON NextCommit where
 
 data FinishedTiming = FinishedTiming
   { finishedTimingCommit :: CommitHash
-  , finishedTimingElapsed :: ElapsedTimeMillis
   , finishedTimingInProgressId :: Int
+  , finishedTimingStartTime :: UTCTime
+  , finishedTimingEndTime :: UTCTime
+  , finishedTimingRunnerId :: Text
   }
 
 instance FromJSON FinishedTiming where
   parseJSON = withObject "FinishedTiming" $ \v -> FinishedTiming
     <$> v .: "commit"
-    <*> v .: "elapsed"
     <*> v .: "inProgressId"
+    <*> v .: "startTime"
+    <*> v .: "endTime"
+    <*> v .: "runnerId"
 
 instance ToJSON FinishedTiming where
-  toJSON (FinishedTiming commit elapsed inProgressId) = object
+  toJSON (FinishedTiming commit inProgressId startTime endTime runnerId) = object
     [ ("commit", toJSON commit)
-    , ("elapsed", toJSON elapsed)
-    , ("inProgressId", toJSON inProgressId) ]
-  toEncoding (FinishedTiming commit elapsed inProgressId) = pairs $
+    , ("inProgressId", toJSON inProgressId)
+    , ("startTime", toJSON startTime)
+    , ("endTime", toJSON endTime)
+    , ("runnerId", toJSON runnerId) ]
+  toEncoding (FinishedTiming commit inProgressId startTime endTime runnerId) = pairs $
     "commit" .= commit <>
-    "elapsed" .= elapsed <>
-    "inProgressId" .= inProgressId
+    "inProgressId" .= inProgressId <>
+    "startTime" .= startTime <>
+    "endTime" .= endTime <>
+    "runnerId" .= runnerId

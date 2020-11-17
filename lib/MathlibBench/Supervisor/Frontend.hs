@@ -8,7 +8,7 @@ import           Control.Monad (void, unless)
 import           Control.Monad.IO.Class (liftIO)
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text.Lazy as TL
-import           Data.Time.Clock (getCurrentTime, addUTCTime)
+import           Data.Time.Clock (UTCTime(..), getCurrentTime, addUTCTime)
 import           Web.Scotty
   ( ActionM, scotty, raw, text, jsonData, get, post, json )
 import qualified Web.Scotty as Scotty
@@ -19,7 +19,8 @@ import qualified MathlibBench.GitRepo as Git
 import           MathlibBench.Logging
 import           MathlibBench.Secret (Secret)
 import           MathlibBench.Supervisor.Config
-import           MathlibBench.Supervisor.Db (Connection, ConnectInfo, withConnection)
+import           MathlibBench.Supervisor.Db
+  ( Connection, ConnectInfo, withConnection )
 import qualified MathlibBench.Supervisor.Db as Db
 import           MathlibBench.Supervisor.Frontend.Static (globalCss)
 import           MathlibBench.Supervisor.Frontend.TimingPage
@@ -38,8 +39,7 @@ updateCommits conn lock timestamp =
     newCommits <- case currentHead of
       Nothing -> Git.getAllCommits _WORKDIR locked
       Just currentHead -> Git.getCommitsFromHeadTo _WORKDIR locked currentHead
-    unless (null newCommits) $
-      Db.insertCommits conn newCommits
+    unless (null newCommits) $ Db.insertCommits conn newCommits
     logInfo "done updating git repo"
 
 setContentTypeHtml :: ActionM ()
@@ -52,8 +52,13 @@ frontendMain ::
   GitRepoLock -> GitRepoTimestamp -> Secret -> ConnectInfo -> Int -> IO ()
 frontendMain lock timestamp secret connInfo port = scotty port $ do
   get "/" $ do
-    page <- liftIO $ withConnection connInfo $
-      fmap (makeTimingPage . map (uncurry Timing)) . Db.fetchTimings
+    page <- liftIO $ withConnection connInfo $ \conn -> do
+      timings <- Db.fetchTimings conn
+      pure $ makeTimingPage $
+        map
+          (\(commit, commitTime, startTime, endTime, runner) ->
+             Timing commit commitTime runner startTime endTime)
+          timings
     setContentTypeHtml
     raw page
 
@@ -84,8 +89,8 @@ frontendMain lock timestamp secret connInfo port = scotty port $ do
 
   post "/finished" $ do
     Api.validateSecretHeader secret
-    (Api.FinishedTiming commit elapsed inProgressId) <- jsonData
+    (Api.FinishedTiming commit inProgressId startTime endTime runnerId) <- jsonData
     liftIO $ withConnection connInfo $ \conn -> do
-      Db.insertTiming conn commit elapsed
+      Db.insertTiming conn commit startTime endTime runnerId
       Db.deleteTimingInProgress conn inProgressId
     text ""

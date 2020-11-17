@@ -9,62 +9,72 @@ import           Prelude hiding (head, id, div)
 
 import qualified Data.ByteString.Lazy as BL
 import           Data.Fixed (Centi)
+import           Data.Functor ((<&>))
+import           Data.Maybe (listToMaybe)
 import           Data.Text (Text)
 import qualified Data.Text as T
 import           Data.Time
-  (NominalDiffTime, nominalDiffTimeToSeconds, formatTime, defaultTimeLocale)
-import           Text.Blaze.Html4.Strict hiding (map)
-import           Text.Blaze.Html4.Strict.Attributes hiding (title)
-import qualified Text.Blaze.Html4.Strict.Attributes as Attr
+  ( UTCTime, NominalDiffTime, nominalDiffTimeToSeconds, formatTime
+  , defaultTimeLocale, diffUTCTime )
+import           Text.Blaze.Html5 hiding (map)
+import qualified Text.Blaze.Html5 as Html
+import           Text.Blaze.Html5.Attributes hiding (title)
+import qualified Text.Blaze.Html5.Attributes as Attr
 import qualified Text.Blaze.Renderer.Utf8 as BlazeUtf8
 
-import MathlibBench.Supervisor.Config
-import MathlibBench.Types
+import           MathlibBench.Supervisor.Config
+import           MathlibBench.Types
 
 data Timing = Timing
   { timingCommit :: CommitHash
-  , timingElapsed :: ElapsedTimeMillis
+  , timingCommitTime :: UTCTime
+  , timingRunnerId :: Text
+  , timingStartTime :: UTCTime
+  , timingEndTime :: UTCTime
   }
 
-data PreviousTiming = PreviousTiming
-  { previousTimingCommit :: CommitHash
-  , previousTimingTimeDiff :: NominalDiffTime
-  , previousTimingTimeRatio :: Centi
+timingElapsed :: Timing -> NominalDiffTime
+timingElapsed t = diffUTCTime (timingEndTime t) (timingStartTime t)
+
+data TimingRow = TimingRow
+  { timingRowCommit :: CommitHash
+  , timingRowCommitTime :: UTCTime
+  , timingRowRunnerId :: Text
+  , timingRowStartTime :: UTCTime
+  , timingRowEndTime :: UTCTime
+  , timingRowPreviousCommit :: Maybe CommitHash
+  , timingRowAbsoluteTimeChange :: Maybe NominalDiffTime
+  , timingRowRelativeTimeChange :: Maybe Centi
   }
 
-data DisplayTiming = DisplayTiming
-  { _displayTimingTiming :: Timing
-  , _displayTimingPrevious :: Maybe PreviousTiming
-  }
-
-makePreviousTiming :: Timing -> Timing -> PreviousTiming
-makePreviousTiming current previous = PreviousTiming
-  { previousTimingCommit = timingCommit previous
-  , previousTimingTimeDiff
-      = elapsedCurrent - elapsedPrevious
-  , previousTimingTimeRatio
-      = realToFrac $
-          (nominalDiffTimeToSeconds elapsedCurrent / nominalDiffTimeToSeconds elapsedPrevious - 1) * 100
-  }
+nominalDiffTimeRelativeChangePercent
+  :: NominalDiffTime -> NominalDiffTime -> Centi
+nominalDiffTimeRelativeChangePercent t1 t2 = realToFrac $
+  ((t2Secs - t1Secs) / t1Secs) * 100
   where
-    elapsedCurrent = elapsedTimeMillisToNominalDiffTime $ timingElapsed current
-    elapsedPrevious = elapsedTimeMillisToNominalDiffTime $ timingElapsed previous
+    t1Secs = nominalDiffTimeToSeconds t1
+    t2Secs = nominalDiffTimeToSeconds t2
 
-makeDisplayTiming :: Timing -> Timing -> DisplayTiming
-makeDisplayTiming current previous
-  = DisplayTiming current $ Just $ makePreviousTiming current previous
+timingsToTimingRows :: [Timing] -> [TimingRow]
+timingsToTimingRows [] = []
+timingsToTimingRows (t : ts) = row : timingsToTimingRows ts
+  where
+    prev :: Maybe Timing
+    prev = listToMaybe ts
 
-timingsToDisplayTimings :: [Timing] -> [DisplayTiming]
-timingsToDisplayTimings [] = []
-timingsToDisplayTimings timings
-  = zipWith makeDisplayTiming timings (tail timings) ++
-      [DisplayTiming (last timings) Nothing]
-
-formatElapsedTime :: ElapsedTimeMillis -> Html
-formatElapsedTime
-  = string
-  . formatTime defaultTimeLocale "%Hh%Mm%Ss"
-  . elapsedTimeMillisToNominalDiffTime
+    row = TimingRow
+      { timingRowCommit = timingCommit t
+      , timingRowCommitTime = timingCommitTime t
+      , timingRowRunnerId = timingRunnerId t
+      , timingRowStartTime = timingStartTime t
+      , timingRowEndTime = timingEndTime t
+      , timingRowPreviousCommit = prev <&> timingCommit
+      , timingRowAbsoluteTimeChange = prev <&> \prev ->
+          timingElapsed t - timingElapsed prev
+      , timingRowRelativeTimeChange = prev <&> \prev ->
+          nominalDiffTimeRelativeChangePercent (timingElapsed t)
+            (timingElapsed prev)
+      }
 
 renderDiffLink :: CommitHash -> Maybe CommitHash -> Html
 renderDiffLink _ Nothing = ""
@@ -74,52 +84,70 @@ renderDiffLink current (Just previous) =
         , T.unpack (fromCommitHash current) ] in
   mconcat [" (", a "diff" ! href url, ")"]
 
-timingRowClass :: DisplayTiming -> AttributeValue
-timingRowClass (DisplayTiming _ Nothing) = "timing-row-default"
-timingRowClass (DisplayTiming _ (Just previous))
-  | abs ratio < _EXPECTED_TIME_DIFF_PERCENT_VARIATION = "timing-row-default"
-  | ratio > 0 = "timing-row-worse"
+timingRowClass :: Maybe Centi -> AttributeValue
+timingRowClass Nothing = "timing-row-default"
+timingRowClass (Just timeRatio)
+  | abs timeRatio < _EXPECTED_TIME_DIFF_PERCENT_VARIATION = "timing-row-default"
+  | timeRatio > 0 = "timing-row-worse"
   | otherwise = "timing-row-better"
+
+renderTimingRow :: TimingRow -> Html
+renderTimingRow
+  (TimingRow currentCommit currentCommitTime runnerId startTime endTime previousCommit
+   absoluteTimeChange relativeTimeChange)
+  = tr ! class_ (timingRowClass relativeTimeChange) $
+      mapM_ td
+        [ commitCell
+        , elapsedTimeCell
+        , absoluteTimeChangeCell
+        , relativeTimeChangeCell
+        ]
   where
-    ratio = previousTimingTimeRatio previous
+    currentCommit' :: Text
+    currentCommit' = fromCommitHash currentCommit
 
-renderDisplayTiming :: DisplayTiming -> Html
-renderDisplayTiming timing@(DisplayTiming current previous)
-  = tr ! class_ (timingRowClass timing) $
-      mapM_ td [commit, elapsedTime, timeChangeAbsolute, timeChangeRelative]
-  where
-    currentCommit :: Text
-    currentCommit = fromCommitHash $ timingCommit current
+    elapsedTime :: NominalDiffTime
+    elapsedTime = diffUTCTime endTime startTime
 
-    commit :: Html
-    commit = mconcat
-      [ a (text $ T.take 8 currentCommit)
-        ! href (stringValue $ _COMMIT_BASE_URL ++ "/" ++ T.unpack currentCommit)
-        ! Attr.title (textValue currentCommit)
-      , renderDiffLink (timingCommit current) (previousTimingCommit <$> previous)
-      ]
+    timestampFormat :: String
+    timestampFormat = "%Y-%m-%d %H:%M:%S %Z"
 
-    elapsedTime :: Html
-    elapsedTime = formatElapsedTime $ timingElapsed current
+    commitCell :: Html
+    commitCell = details $ do
+      Html.summary $ do
+        a (text $ T.take 8 currentCommit')
+          ! href (stringValue $ _COMMIT_BASE_URL ++ "/" ++ T.unpack currentCommit')
+          ! Attr.title (textValue currentCommit')
+        renderDiffLink currentCommit previousCommit
+      p $ string $
+        "Commited: " <>
+        formatTime defaultTimeLocale timestampFormat currentCommitTime
 
-    timeChangeAbsolute :: Html
-    timeChangeAbsolute = case previous of
+    elapsedTimeCell :: Html
+    elapsedTimeCell = details $ do
+        Html.summary $ string $
+          formatTime defaultTimeLocale "%Hh%Mm%Ss" elapsedTime
+        p $ string $
+          "Started: " <> formatTime defaultTimeLocale timestampFormat startTime
+        p $ string $
+          "Ended: "   <> formatTime defaultTimeLocale timestampFormat endTime
+        p $ text $ "Runner: " <> runnerId
+
+    absoluteTimeChangeCell :: Html
+    absoluteTimeChangeCell = case absoluteTimeChange of
       Nothing -> "─"
-      Just previous ->
-        let diff = previousTimingTimeDiff previous in
-        let isPositive = diff >= 0 in
-        string $
-          if isPositive
-            then formatTime defaultTimeLocale "%mm%Ss" diff
-            else formatTime defaultTimeLocale "-%mm%Ss" (negate diff)
+      Just diff -> string $
+        if diff >= 0
+          then formatTime defaultTimeLocale "%mm%Ss" diff
+          else formatTime defaultTimeLocale "-%mm%Ss" (negate diff)
 
-    timeChangeRelative :: Html
-    timeChangeRelative = case previous of
+    relativeTimeChangeCell :: Html
+    relativeTimeChangeCell = case relativeTimeChange of
       Nothing -> "─"
-      Just previous -> string $ show $ previousTimingTimeRatio previous
+      Just diff -> string $ show diff
 
 
-renderTimings :: [DisplayTiming] -> Html
+renderTimings :: [TimingRow] -> Html
 renderTimings timings = docTypeHtml $ do
   head $ do
     meta ! charset "UTF-8"
@@ -134,7 +162,7 @@ renderTimings timings = docTypeHtml $ do
         th "time"
         th "time change"
         th "time change %"
-      mconcat $ map renderDisplayTiming timings
+      mapM_ renderTimingRow timings
 
 makeTimingPage :: [Timing] -> BL.ByteString
-makeTimingPage = BlazeUtf8.renderMarkup . renderTimings . timingsToDisplayTimings
+makeTimingPage = BlazeUtf8.renderMarkup . renderTimings . timingsToTimingRows

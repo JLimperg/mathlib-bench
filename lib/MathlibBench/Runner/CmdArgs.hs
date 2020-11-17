@@ -4,17 +4,20 @@ module MathlibBench.Runner.CmdArgs
 ) where
 
 import           Data.String (fromString)
+import           Data.Text (Text)
 import           Options.Applicative
 
 import           MathlibBench.Secret (Secret, parseSecret)
 
-newtype CmdArgs = CmdArgs
-  { cmdArgsSecret :: Secret
+data CmdArgs = CmdArgs
+  { cmdArgsRunnerId :: Text
+  , cmdArgsSecret :: Secret
   }
 
 optsParser :: Parser CmdArgs
 optsParser = CmdArgs
-  <$> argument (maybeReader $ parseSecret . fromString) (metavar "SECRET")
+  <$> argument str (metavar "RUNNER_ID")
+  <*> argument (maybeReader $ parseSecret . fromString) (metavar "SECRET")
 
 programInfo :: ParserInfo CmdArgs
 programInfo = info optsParser
