@@ -1,12 +1,35 @@
 table {
     border-collapse: collapse;
     width: 100%;
+    min-width: 800px;
 }
 
 td, th {
     border: 1px solid black;
     text-align: left;
     padding: 0.5em;
+    word-wrap: break-word;
+    vertical-align: top;
+}
+
+.auxiliary-info {
+    font-size: 85%;
+}
+
+col.commit-column {
+    width: 33%;
+}
+
+col.time-column {
+    width: 33%;
+}
+
+col.time-change-absolute-column {
+    width: 17%;
+}
+
+col.time-change-relative-column {
+    width: 17%;
 }
 
 tr.timing-row-worse {

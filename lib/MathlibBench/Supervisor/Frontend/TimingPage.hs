@@ -119,19 +119,22 @@ renderTimingRow
           ! href (stringValue $ _COMMIT_BASE_URL ++ "/" ++ T.unpack currentCommit')
           ! Attr.title (textValue currentCommit')
         renderDiffLink currentCommit previousCommit
-      p $ string $
+      Html.span ! class_ "auxiliary-info" $ string $
         "Commited: " <>
-        formatTime defaultTimeLocale timestampFormat currentCommitTime
+          formatTime defaultTimeLocale timestampFormat currentCommitTime
 
     elapsedTimeCell :: Html
     elapsedTimeCell = details $ do
         Html.summary $ string $
           formatTime defaultTimeLocale "%Hh%Mm%Ss" elapsedTime
-        p $ string $
-          "Started: " <> formatTime defaultTimeLocale timestampFormat startTime
-        p $ string $
-          "Ended: "   <> formatTime defaultTimeLocale timestampFormat endTime
-        p $ text $ "Runner: " <> runnerId
+        Html.span ! class_ "auxiliary-info" $ do
+          string $
+            "Started: " <> formatTime defaultTimeLocale timestampFormat startTime
+          br
+          string $
+            "Ended: "   <> formatTime defaultTimeLocale timestampFormat endTime
+          br
+          text $ "Runner: " <> runnerId
 
     absoluteTimeChangeCell :: Html
     absoluteTimeChangeCell = case absoluteTimeChange of
@@ -157,12 +160,16 @@ renderTimings timings = docTypeHtml $ do
   body $ do
     h1 "mathlib build time benchmark"
     table $ do
-      tr $ do
+      col ! class_ "commit-column"
+      col ! class_ "time-column"
+      col ! class_ "time-change-absolute-column"
+      col ! class_ "time-change-relative-column"
+      thead $ tr $ do
         th "commit"
         th "time"
         th "time change"
         th "time change %"
-      mapM_ renderTimingRow timings
+      tbody $ mapM_ renderTimingRow timings
 
 makeTimingPage :: [Timing] -> BL.ByteString
 makeTimingPage = BlazeUtf8.renderMarkup . renderTimings . timingsToTimingRows
