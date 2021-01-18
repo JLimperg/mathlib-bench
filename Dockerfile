@@ -24,7 +24,7 @@ RUN cp $(stack path --local-install-root)/bin/* /binaries/
 
 FROM debian:buster-20201012 AS runner
 RUN mkdir -p /mathlib-bench/runner
-RUN apt-get update && apt-get install -y git
+RUN apt-get update && apt-get install -y git libpq-dev
 COPY docker/elan-init-0.10.2.gz /tmp/elan-init.gz
 RUN gunzip /tmp/elan-init.gz && \
     /tmp/elan-init --no-modify-path -y --default-toolchain none
