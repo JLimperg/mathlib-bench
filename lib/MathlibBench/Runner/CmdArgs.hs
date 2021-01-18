@@ -11,12 +11,14 @@ import           MathlibBench.Secret (Secret, parseSecret)
 
 data CmdArgs = CmdArgs
   { cmdArgsRunnerId :: Text
+  , cmdArgsSupervisorUrl :: String
   , cmdArgsSecret :: Secret
   }
 
 optsParser :: Parser CmdArgs
 optsParser = CmdArgs
   <$> argument str (metavar "RUNNER_ID")
+  <*> argument str (metavar "SUPERVISOR_URL")
   <*> argument (maybeReader $ parseSecret . fromString) (metavar "SECRET")
 
 programInfo :: ParserInfo CmdArgs

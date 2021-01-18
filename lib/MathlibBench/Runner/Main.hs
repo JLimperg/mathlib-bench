@@ -22,13 +22,13 @@ import           MathlibBench.Runner.Config
 import           MathlibBench.Secret (Secret)
 import           MathlibBench.Types
 
-getNextCommit :: Secret -> IO Api.NextCommit
-getNextCommit secret = getResponseBody <$>
-  httpJSON (Api.emptyPostRequest secret _NEXT_COMMIT_URL)
+getNextCommit :: String -> Secret -> IO Api.NextCommit
+getNextCommit supervisorUrl secret = getResponseBody <$>
+  httpJSON (Api.emptyPostRequest secret $ supervisorUrl <> _NEXT_COMMIT_URL_SUFFIX)
 
-reportTiming :: Secret -> Api.FinishedTiming -> IO ()
-reportTiming secret timing = void $ httpNoBody $
-  Api.jsonPostRequest secret timing _FINISHED_URL
+reportTiming :: String -> Secret -> Api.FinishedTiming -> IO ()
+reportTiming supervisorUrl secret timing = void $ httpNoBody $
+  Api.jsonPostRequest secret timing $ supervisorUrl <> _FINISHED_URL_SUFFIX
 
 timeBuild :: GitRepoLock -> CommitHash -> IO (UTCTime, UTCTime)
 timeBuild lock commit =
@@ -50,17 +50,17 @@ timeBuild lock commit =
 
 main :: IO ()
 main = do
-  (CmdArgs runnerId secret) <- parseCmdArgs
+  (CmdArgs runnerId supervisorUrl secret) <- parseCmdArgs
   setupLogging
   Git.setupGitRepo _WORKDIR
   lock <- Git.newGitRepoLock
   forever $ handle exceptionHandler $ do
-    nextCommit <- getNextCommit secret
+    nextCommit <- getNextCommit supervisorUrl secret
     case nextCommit of
       Api.NoNextCommit -> pure ()
       Api.NextCommit commit inProgressId -> do
         (startTime, endTime) <- timeBuild lock commit
-        reportTiming secret $
+        reportTiming supervisorUrl secret $
           Api.FinishedTiming commit inProgressId startTime endTime runnerId
   where
     -- TODO catch JSONException as well?

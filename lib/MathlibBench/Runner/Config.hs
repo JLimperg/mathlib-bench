@@ -13,14 +13,11 @@ _NUM_THREADS = 4
 _MEM_LIMIT_MB :: Int
 _MEM_LIMIT_MB = 20000
 
-_SUPERVISOR_BASE_URL :: String
-_SUPERVISOR_BASE_URL = "http://mathlib-bench.limperg.de"
+_NEXT_COMMIT_URL_SUFFIX :: String
+_NEXT_COMMIT_URL_SUFFIX = "/next"
 
-_NEXT_COMMIT_URL :: String
-_NEXT_COMMIT_URL = _SUPERVISOR_BASE_URL ++ "/next"
-
-_FINISHED_URL :: String
-_FINISHED_URL = _SUPERVISOR_BASE_URL ++ "/finished"
+_FINISHED_URL_SUFFIX :: String
+_FINISHED_URL_SUFFIX = "/finished"
 
 _ROOTDIR :: FilePath
 _ROOTDIR = "/mathlib-bench/runner"
