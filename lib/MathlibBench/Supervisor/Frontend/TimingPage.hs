@@ -47,11 +47,11 @@ data TimingRow = TimingRow
 
 nominalDiffTimeRelativeChangePercent
   :: NominalDiffTime -> NominalDiffTime -> Centi
-nominalDiffTimeRelativeChangePercent t1 t2 = realToFrac $
-  ((t2Secs - t1Secs) / t1Secs) * 100
+nominalDiffTimeRelativeChangePercent prev current = realToFrac $
+  (currentSecs / prevSecs - 1) * 100
   where
-    t1Secs = nominalDiffTimeToSeconds t1
-    t2Secs = nominalDiffTimeToSeconds t2
+    prevSecs = nominalDiffTimeToSeconds prev
+    currentSecs = nominalDiffTimeToSeconds current
 
 timingsToTimingRows :: [Timing] -> [TimingRow]
 timingsToTimingRows [] = []
@@ -70,8 +70,8 @@ timingsToTimingRows (t : ts) = row : timingsToTimingRows ts
       , timingRowAbsoluteTimeChange = prev <&> \prev ->
           timingElapsed t - timingElapsed prev
       , timingRowRelativeTimeChange = prev <&> \prev ->
-          nominalDiffTimeRelativeChangePercent (timingElapsed t)
-            (timingElapsed prev)
+          nominalDiffTimeRelativeChangePercent (timingElapsed prev)
+            (timingElapsed t)
       }
 
 renderDiffLink :: CommitHash -> Maybe CommitHash -> Html
