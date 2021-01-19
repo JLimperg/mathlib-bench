@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module MathlibBench.Supervisor.Db
 ( Connection
@@ -15,21 +16,46 @@ module MathlibBench.Supervisor.Db
 , insertTimingInProgress
 , deleteTimingInProgress
 , pruneTimingsInProgress
+, insertPerFileTimings
+, fetchPerFileTimings
 )where
 
 import           Control.Exception (bracket)
 import           Control.Monad (void)
+import           Data.ByteString.Builder (integerDec)
 import           Data.Coerce (coerce)
+import           Data.Fixed (Fixed(..))
 import           Data.Maybe (listToMaybe)
 import           Data.Text (Text)
-import           Data.Time (UTCTime)
+import           Data.Time
+  ( NominalDiffTime, UTCTime, nominalDiffTimeToSeconds
+  , secondsToNominalDiffTime )
 import           Database.PostgreSQL.Simple
-  ( Connection, ConnectInfo, Only(..), execute, execute_, executeMany, query, query_ )
+  ( Connection, ConnectInfo, Only(..), execute, execute_, executeMany, query
+  , query_ )
 import qualified Database.PostgreSQL.Simple as Db
+import           Database.PostgreSQL.Simple.FromField (FromField(..))
+import           Database.PostgreSQL.Simple.ToField (Action(..), ToField(..))
 import           Text.Heredoc (str)
 
 import           MathlibBench.Logging
 import           MathlibBench.Types
+
+-- Used to store time durations in the database since NominalDiffTime doesn't
+-- have ToField/FromField instances. A NominalDiffTime is an integer
+-- representing a time duration in picoseconds, so we just store that integer.
+-- Note that this means 1 second is represented as 10^12, so make sure you're
+-- using a big enough integer type.
+newtype TimeInterval = TimeInterval { _fromTimeInterval :: NominalDiffTime }
+
+instance ToField TimeInterval where
+  toField (TimeInterval i) =
+    let (MkFixed x) = nominalDiffTimeToSeconds i in
+    Plain $ integerDec x
+
+instance FromField TimeInterval where
+  fromField field dat
+    = TimeInterval . secondsToNominalDiffTime . MkFixed <$> fromField field dat
 
 withConnection :: ConnectInfo -> (Connection -> IO a) -> IO a
 withConnection connInfo = bracket (Db.connect connInfo) Db.close
@@ -56,6 +82,13 @@ createDb conn = do
         |( id serial primary key
         |, commit_id integer not null references commits(id)
         |, start_time timestamp with time zone not null )
+        |]
+  void $ execute_ conn
+    [str|create table if not exists per_file_timings
+        |( id serial primary key
+        |, commit_id integer not null references commits(id)
+        |, file text not null
+        |, elapsed bigint not null )
         |]
 
 fetchTimings :: Connection -> IO [(CommitHash, UTCTime, UTCTime, UTCTime, Text)]
@@ -131,3 +164,28 @@ pruneTimingsInProgress :: Connection -> UTCTime -> IO ()
 pruneTimingsInProgress conn timeout = void $ execute conn
   "delete from inprogress where start_time < ?"
   (Only timeout)
+
+insertPerFileTimings
+  :: Connection -> CommitHash -> [(Text, NominalDiffTime)] -> IO ()
+insertPerFileTimings conn commit timings = do
+  [Only (commitId :: Int)] <- query conn
+    "select id from commits where commit_hash = ?"
+    (Only commit)
+  void $ executeMany conn
+    [str|insert into per_file_timings (commit_id, file, elapsed)
+        |values (?, ?, ?)
+        |]
+    (map (\(file, elapsed) -> (commitId, file, elapsed))
+       (coerce timings :: [(Text, TimeInterval)]))
+
+fetchPerFileTimings :: Connection -> CommitHash -> IO [(Text, NominalDiffTime)]
+fetchPerFileTimings conn commit = do
+  results :: [(Text, TimeInterval)] <- query conn
+    [str|select per_file_timings.file, per_file_timings.elapsed
+        |from per_file_timings join commits
+        |  on per_file_timings.commit_id = commits.id
+        |where commits.commit_hash = ?
+        |order by per_file_timings.file
+        |]
+    (Only commit)
+  pure $ coerce results

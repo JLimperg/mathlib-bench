@@ -22,8 +22,10 @@ library
                      , blaze-markup == 0.8.*
                      , bytestring == 0.10.*
                      , concurrent-extra == 0.7.*
+                     , containers == 0.6.*
                      , directory == 1.3.*
                      , filepath == 1.4.*
+                     , filepattern == 0.1.*
                      , file-embed == 0.0.*
                      , heredoc == 0.2.*
                      , http-conduit == 2.3.*
@@ -50,6 +52,7 @@ library
                      , MathlibBench.Supervisor.Config
                      , MathlibBench.Supervisor.Db
                      , MathlibBench.Supervisor.Frontend
+                     , MathlibBench.Supervisor.Frontend.PerFileTimingPage
                      , MathlibBench.Supervisor.Frontend.Static
                      , MathlibBench.Supervisor.Frontend.TimingPage
                      , MathlibBench.Supervisor.GitRepo.Timestamp

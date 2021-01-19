@@ -4,11 +4,17 @@ module MathlibBench.Runner.Config where
 
 import           System.FilePath ((</>))
 
+_ELAN_BINDIR :: FilePath
+_ELAN_BINDIR = "/root/.elan/bin"
+
 _LEANPKG :: FilePath
-_LEANPKG = "/root/.elan/bin/leanpkg"
+_LEANPKG = _ELAN_BINDIR </> "leanpkg"
+
+_LEAN :: FilePath
+_LEAN = _ELAN_BINDIR </> "lean"
 
 _NUM_THREADS :: Int
-_NUM_THREADS = 4
+_NUM_THREADS = 16
 
 _MEM_LIMIT_MB :: Int
 _MEM_LIMIT_MB = 20000

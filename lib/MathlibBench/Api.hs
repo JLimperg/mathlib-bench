@@ -11,9 +11,10 @@ module MathlibBench.Api
 import           Control.Monad (unless)
 import           Data.Aeson
 import           Data.Aeson.Types (unexpected)
+import           Data.Map (Map)
 import           Data.String (fromString)
 import           Data.Text (Text)
-import           Data.Time (UTCTime)
+import           Data.Time (NominalDiffTime, UTCTime)
 import           Network.HTTP.Simple
   ( setRequestMethod,  Request, parseRequest_, setRequestBodyJSON
   , addRequestHeader )
@@ -75,6 +76,7 @@ data FinishedTiming = FinishedTiming
   , finishedTimingStartTime :: UTCTime
   , finishedTimingEndTime :: UTCTime
   , finishedTimingRunnerId :: Text
+  , finishedTimingPerFileTimings :: Map Text NominalDiffTime
   }
 
 instance FromJSON FinishedTiming where
@@ -84,17 +86,20 @@ instance FromJSON FinishedTiming where
     <*> v .: "startTime"
     <*> v .: "endTime"
     <*> v .: "runnerId"
+    <*> v .: "perFileTimings"
 
 instance ToJSON FinishedTiming where
-  toJSON (FinishedTiming commit inProgressId startTime endTime runnerId) = object
+  toJSON (FinishedTiming commit inProgressId startTime endTime runnerId perFileTimings) = object
     [ ("commit", toJSON commit)
     , ("inProgressId", toJSON inProgressId)
     , ("startTime", toJSON startTime)
     , ("endTime", toJSON endTime)
-    , ("runnerId", toJSON runnerId) ]
-  toEncoding (FinishedTiming commit inProgressId startTime endTime runnerId) = pairs $
+    , ("runnerId", toJSON runnerId)
+    , ("perFileTimings", toJSON perFileTimings)]
+  toEncoding (FinishedTiming commit inProgressId startTime endTime runnerId perFileTimings) = pairs $
     "commit" .= commit <>
     "inProgressId" .= inProgressId <>
     "startTime" .= startTime <>
     "endTime" .= endTime <>
-    "runnerId" .= runnerId
+    "runnerId" .= runnerId <>
+    "perFileTimings" .= perFileTimings

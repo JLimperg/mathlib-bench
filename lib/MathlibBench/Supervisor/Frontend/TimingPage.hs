@@ -2,12 +2,11 @@
 
 module MathlibBench.Supervisor.Frontend.TimingPage
 ( Timing(..)
-, makeTimingPage
+, renderTimings
 ) where
 
 import           Prelude hiding (head, id, div)
 
-import qualified Data.ByteString.Lazy as BL
 import           Data.Fixed (Centi)
 import           Data.Functor ((<&>))
 import           Data.Maybe (listToMaybe)
@@ -20,7 +19,6 @@ import           Text.Blaze.Html5 hiding (map)
 import qualified Text.Blaze.Html5 as Html
 import           Text.Blaze.Html5.Attributes hiding (title)
 import qualified Text.Blaze.Html5.Attributes as Attr
-import qualified Text.Blaze.Renderer.Utf8 as BlazeUtf8
 
 import           MathlibBench.Supervisor.Config
 import           MathlibBench.Types
@@ -134,6 +132,9 @@ renderTimingRow
           string $
             "Ended: "   <> formatTime defaultTimeLocale timestampFormat endTime
           br
+          a ! href (textValue $ "/perfile/" <> currentCommit') $
+            "Per-file timings"
+          br
           text $ "Runner: " <> runnerId
 
     absoluteTimeChangeCell :: Html
@@ -150,8 +151,8 @@ renderTimingRow
       Just diff -> string $ show diff
 
 
-renderTimings :: [TimingRow] -> Html
-renderTimings timings = docTypeHtml $ do
+renderTimings' :: [TimingRow] -> Html
+renderTimings' timings = docTypeHtml $ do
   head $ do
     meta ! charset "UTF-8"
     link ! rel "stylesheet" ! href "/global.css"
@@ -171,5 +172,5 @@ renderTimings timings = docTypeHtml $ do
         th "time change %"
       tbody $ mapM_ renderTimingRow timings
 
-makeTimingPage :: [Timing] -> BL.ByteString
-makeTimingPage = BlazeUtf8.renderMarkup . renderTimings . timingsToTimingRows
+renderTimings :: [Timing] -> Html
+renderTimings = renderTimings' . timingsToTimingRows
