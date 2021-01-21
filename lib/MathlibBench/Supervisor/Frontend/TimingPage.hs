@@ -16,7 +16,6 @@ import           Data.Time
   ( UTCTime, NominalDiffTime, nominalDiffTimeToSeconds, formatTime
   , defaultTimeLocale, diffUTCTime )
 import           Text.Blaze.Html5 hiding (map)
-import qualified Text.Blaze.Html5 as Html
 import           Text.Blaze.Html5.Attributes hiding (title)
 import qualified Text.Blaze.Html5.Attributes as Attr
 
@@ -25,8 +24,6 @@ import           MathlibBench.Types
 
 data Timing = Timing
   { timingCommit :: CommitHash
-  , timingCommitTime :: UTCTime
-  , timingRunnerId :: Text
   , timingStartTime :: UTCTime
   , timingEndTime :: UTCTime
   }
@@ -36,8 +33,6 @@ timingElapsed t = diffUTCTime (timingEndTime t) (timingStartTime t)
 
 data TimingRow = TimingRow
   { timingRowCommit :: CommitHash
-  , timingRowCommitTime :: UTCTime
-  , timingRowRunnerId :: Text
   , timingRowStartTime :: UTCTime
   , timingRowEndTime :: UTCTime
   , timingRowPreviousCommit :: Maybe CommitHash
@@ -62,8 +57,6 @@ timingsToTimingRows (t : ts) = row : timingsToTimingRows ts
 
     row = TimingRow
       { timingRowCommit = timingCommit t
-      , timingRowCommitTime = timingCommitTime t
-      , timingRowRunnerId = timingRunnerId t
       , timingRowStartTime = timingStartTime t
       , timingRowEndTime = timingEndTime t
       , timingRowPreviousCommit = prev <&> timingCommit
@@ -75,12 +68,17 @@ timingsToTimingRows (t : ts) = row : timingsToTimingRows ts
       }
 
 renderDiffLink :: CommitHash -> Maybe CommitHash -> Html
-renderDiffLink _ Nothing = ""
+renderDiffLink _ Nothing = mempty
 renderDiffLink current (Just previous) =
   let url = stringValue $ concat
         [ _DIFF_BASE_URL, "/", T.unpack (fromCommitHash previous), "..."
         , T.unpack (fromCommitHash current) ] in
-  mconcat [" (", a "diff" ! href url, ")"]
+  mconcat
+    [ " ("
+    , a "diff"
+        ! href url
+        ! Attr.title "Diff between this commit and the last benchmarked commit"
+    , ")"]
 
 timingRowClass :: Maybe Centi -> AttributeValue
 timingRowClass Nothing = "timing-row-default"
@@ -91,7 +89,7 @@ timingRowClass (Just timeRatio)
 
 renderTimingRow :: TimingRow -> Html
 renderTimingRow
-  (TimingRow currentCommit currentCommitTime runnerId startTime endTime previousCommit
+  (TimingRow currentCommit startTime endTime previousCommit
    absoluteTimeChange relativeTimeChange)
   = tr ! class_ (timingRowClass relativeTimeChange) $
       mapM_ td
@@ -107,35 +105,16 @@ renderTimingRow
     elapsedTime :: NominalDiffTime
     elapsedTime = diffUTCTime endTime startTime
 
-    timestampFormat :: String
-    timestampFormat = "%Y-%m-%d %H:%M:%S %Z"
-
     commitCell :: Html
-    commitCell = details $ do
-      Html.summary $ do
-        a (text $ T.take 8 currentCommit')
-          ! href (stringValue $ _COMMIT_BASE_URL ++ "/" ++ T.unpack currentCommit')
-          ! Attr.title (textValue currentCommit')
-        renderDiffLink currentCommit previousCommit
-      Html.span ! class_ "auxiliary-info" $ string $
-        "Commited: " <>
-          formatTime defaultTimeLocale timestampFormat currentCommitTime
+    commitCell = do
+      a (text $ T.take 8 currentCommit')
+        ! href (textValue $ "/commit/" <> currentCommit')
+        ! Attr.title (textValue currentCommit')
+      renderDiffLink currentCommit previousCommit
 
     elapsedTimeCell :: Html
-    elapsedTimeCell = details $ do
-        Html.summary $ string $
-          formatTime defaultTimeLocale "%Hh%Mm%Ss" elapsedTime
-        Html.span ! class_ "auxiliary-info" $ do
-          string $
-            "Started: " <> formatTime defaultTimeLocale timestampFormat startTime
-          br
-          string $
-            "Ended: "   <> formatTime defaultTimeLocale timestampFormat endTime
-          br
-          a ! href (textValue $ "/perfile/" <> currentCommit') $
-            "Per-file timings"
-          br
-          text $ "Runner: " <> runnerId
+    elapsedTimeCell = string $
+      formatTime defaultTimeLocale "%Hh%Mm%Ss" elapsedTime
 
     absoluteTimeChangeCell :: Html
     absoluteTimeChangeCell = case absoluteTimeChange of
@@ -156,20 +135,20 @@ renderTimings' timings = docTypeHtml $ do
   head $ do
     meta ! charset "UTF-8"
     link ! rel "stylesheet" ! href "/global.css"
-    title "mathlib build time benchmark"
+    title "mathlib Build Time Benchmark"
 
   body $ do
-    h1 "mathlib build time benchmark"
-    table $ do
+    h1 "mathlib Build Time Benchmark"
+    table ! id "timings-table" $ do
       col ! class_ "commit-column"
       col ! class_ "time-column"
       col ! class_ "time-change-absolute-column"
       col ! class_ "time-change-relative-column"
       thead $ tr $ do
-        th "commit"
-        th "time"
-        th "time change"
-        th "time change %"
+        th "Commit"
+        th "Time"
+        th "Time change"
+        th "Time change %"
       tbody $ mapM_ renderTimingRow timings
 
 renderTimings :: [Timing] -> Html

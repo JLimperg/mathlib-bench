@@ -29,6 +29,7 @@ library
                      , file-embed == 0.0.*
                      , heredoc == 0.2.*
                      , http-conduit == 2.3.*
+                     , http-types == 0.12.*
                      , optparse-applicative == 0.15.*
                      , postgresql-simple == 0.6.*
                      , random == 1.1.*
@@ -52,7 +53,7 @@ library
                      , MathlibBench.Supervisor.Config
                      , MathlibBench.Supervisor.Db
                      , MathlibBench.Supervisor.Frontend
-                     , MathlibBench.Supervisor.Frontend.PerFileTimingPage
+                     , MathlibBench.Supervisor.Frontend.CommitPage
                      , MathlibBench.Supervisor.Frontend.Static
                      , MathlibBench.Supervisor.Frontend.TimingPage
                      , MathlibBench.Supervisor.GitRepo.Timestamp

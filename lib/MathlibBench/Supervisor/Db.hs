@@ -1,3 +1,4 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -18,6 +19,8 @@ module MathlibBench.Supervisor.Db
 , pruneTimingsInProgress
 , insertPerFileTimings
 , fetchPerFileTimings
+, fetchTiming
+, fetchTimingWithPerFileTimings
 )where
 
 import           Control.Exception (bracket)
@@ -57,6 +60,9 @@ instance FromField TimeInterval where
   fromField field dat
     = TimeInterval . secondsToNominalDiffTime . MkFixed <$> fromField field dat
 
+newtype TimingId = TimingId { fromTimingId :: Int }
+  deriving (ToField, FromField)
+
 withConnection :: ConnectInfo -> (Connection -> IO a) -> IO a
 withConnection connInfo = bracket (Db.connect connInfo) Db.close
 
@@ -86,36 +92,39 @@ createDb conn = do
   void $ execute_ conn
     [str|create table if not exists per_file_timings
         |( id serial primary key
-        |, commit_id integer not null references commits(id)
+        |, timing_id integer not null references timings(id)
         |, file text not null
         |, elapsed bigint not null )
         |]
 
-fetchTimings :: Connection -> IO [(CommitHash, UTCTime, UTCTime, UTCTime, Text)]
+fetchTimings :: Connection -> IO [(CommitHash, UTCTime, UTCTime)]
 fetchTimings conn = query_ conn
-  [str|select commits.commit_hash, commits.commit_time, timings.start_time,
-      |  timings.end_time, timings.runner
+  [str|select commits.commit_hash, timings.start_time, timings.end_time
       |from timings join commits on timings.commit_id = commits.id
       |order by commits.id desc
       |]
 
 hasTimingForCommit :: Connection -> CommitHash -> IO Bool
 hasTimingForCommit conn commit = do
-  r <- query conn
+  (r :: [Only Int]) <- query conn
     [str|select id
         |from timings join commits on timings.commit_id = commits.id
         |where commits.commit_hash = ?
+        |limit 1
         |]
     (Only commit)
-    :: IO [Only Int]
   pure $ not $ null r
 
-insertTiming :: Connection -> CommitHash -> UTCTime -> UTCTime -> Text -> IO ()
-insertTiming conn commit startTime endTime runner = void $ execute conn
-  [str|insert into timings (commit_id, start_time, end_time, runner)
-      |values ((select id from commits where commit_hash = ?), ?, ?, ?)
-      |]
-  (commit, startTime, endTime, runner)
+insertTiming
+  :: Connection -> CommitHash -> UTCTime -> UTCTime -> Text -> IO TimingId
+insertTiming conn commit startTime endTime runner = do
+  [Only timingId] <- query conn
+    [str|insert into timings (commit_id, start_time, end_time, runner)
+        |values ((select id from commits where commit_hash = ?), ?, ?, ?)
+        |returning id
+        |]
+    (commit, startTime, endTime, runner)
+  pure timingId
 
 fetchLastCommit :: Connection -> IO (Maybe CommitHash)
 fetchLastCommit conn = do
@@ -166,26 +175,46 @@ pruneTimingsInProgress conn timeout = void $ execute conn
   (Only timeout)
 
 insertPerFileTimings
-  :: Connection -> CommitHash -> [(Text, NominalDiffTime)] -> IO ()
-insertPerFileTimings conn commit timings = do
-  [Only (commitId :: Int)] <- query conn
-    "select id from commits where commit_hash = ?"
-    (Only commit)
-  void $ executeMany conn
-    [str|insert into per_file_timings (commit_id, file, elapsed)
-        |values (?, ?, ?)
-        |]
-    (map (\(file, elapsed) -> (commitId, file, elapsed))
-       (coerce timings :: [(Text, TimeInterval)]))
+  :: Connection -> TimingId -> [(Text, NominalDiffTime)] -> IO ()
+insertPerFileTimings conn timingId timings = void $ executeMany conn
+  [str|insert into per_file_timings (timing_id, file, elapsed)
+      |values (?, ?, ?)
+      |]
+  (map (\(file, elapsed) -> (timingId, file, elapsed))
+      (coerce timings :: [(Text, TimeInterval)]))
 
-fetchPerFileTimings :: Connection -> CommitHash -> IO [(Text, NominalDiffTime)]
-fetchPerFileTimings conn commit = do
+fetchPerFileTimings :: Connection -> TimingId -> IO [(Text, NominalDiffTime)]
+fetchPerFileTimings conn timingId = do
   results :: [(Text, TimeInterval)] <- query conn
-    [str|select per_file_timings.file, per_file_timings.elapsed
-        |from per_file_timings join commits
-        |  on per_file_timings.commit_id = commits.id
-        |where commits.commit_hash = ?
+    [str|select file, elapsed
+        |from per_file_timings
+        |where timing_id = ?
         |order by per_file_timings.file
         |]
-    (Only commit)
+    (Only timingId)
   pure $ coerce results
+
+fetchTiming
+  :: Connection -> CommitHash
+  -> IO (Maybe (UTCTime, TimingId, UTCTime, UTCTime, Text))
+fetchTiming conn commit = listToMaybe <$>
+  query conn
+    [str|select commits.commit_time, timings.id, timings.start_time,
+        |  timings.end_time, timings.runner
+        |from commits join timings on commits.id = timings.commit_id
+        |where commits.commit_hash = ?
+        |limit 1
+        |]
+    (Only commit)
+
+fetchTimingWithPerFileTimings
+  :: Connection -> CommitHash
+  -> IO (Maybe (UTCTime, UTCTime, UTCTime, Text, [(Text, NominalDiffTime)]))
+fetchTimingWithPerFileTimings conn commit = do
+  timingMay <- fetchTiming conn commit
+  case timingMay of
+    Nothing -> pure Nothing
+    Just (commitTime, timingId, startTime, endTime, runner) -> do
+     perFileTimings <- fetchPerFileTimings conn timingId
+     pure $ Just
+       (commitTime, startTime, endTime, runner, perFileTimings)

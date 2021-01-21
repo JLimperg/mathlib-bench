@@ -10,10 +10,11 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map as Map
 import qualified Data.Text.Lazy as TL
 import           Data.Time.Clock (getCurrentTime, addUTCTime)
+import           Network.HTTP.Types.Status (status404)
 import qualified Text.Blaze.Renderer.Utf8 as BlazeUtf8
 import           Text.Blaze.XHtml5 (Html)
 import           Web.Scotty
-  ( ActionM, scotty, raw, text, jsonData, get, post, json, param )
+  ( ActionM, scotty, raw, text, jsonData, get, post, json, param, raiseStatus )
 import qualified Web.Scotty as Scotty
 
 import qualified MathlibBench.Api as Api
@@ -26,8 +27,8 @@ import           MathlibBench.Supervisor.Db
   ( Connection, ConnectInfo, withConnection )
 import qualified MathlibBench.Supervisor.Db as Db
 import           MathlibBench.Supervisor.Frontend.Static (globalCss)
-import           MathlibBench.Supervisor.Frontend.PerFileTimingPage
-  ( renderPerFileTimings )
+import           MathlibBench.Supervisor.Frontend.CommitPage
+  ( Commit(..), renderCommit )
 import           MathlibBench.Supervisor.Frontend.TimingPage
   ( Timing(..), renderTimings )
 import           MathlibBench.Supervisor.GitRepo.Timestamp
@@ -62,26 +63,31 @@ frontendMain ::
   GitRepoLock -> GitRepoTimestamp -> Secret -> ConnectInfo -> Int -> IO ()
 frontendMain lock timestamp secret connInfo port = scotty port $ do
   get "/" $ do
-    page <- liftIO $ withConnection connInfo $ \conn -> do
-      timings <- Db.fetchTimings conn
-      pure $ renderTimings $
-        map
-          (\(commit, commitTime, startTime, endTime, runner) ->
-             Timing commit commitTime runner startTime endTime)
-          timings
-    blaze page
+    timings <- liftIO $ withConnection connInfo Db.fetchTimings
+    blaze $ renderTimings $
+      map (\(commit, startTime, endTime) -> Timing commit startTime endTime)
+        timings
 
   get "/global.css" $ do
     setContentTypeCss
     raw $ BL.fromStrict globalCss
 
-  get "/perfile/:commit" $ do
+  get "/commit/:commit" $ do
     commit' <- param "commit"
     let commit = CommitHash commit'
-    page <- liftIO $ withConnection connInfo $ \conn -> do
-      perFileTimings <- Db.fetchPerFileTimings conn commit
-      pure $ renderPerFileTimings commit perFileTimings
-    blaze page
+    timingMay <- liftIO $ withConnection connInfo $ \conn ->
+      Db.fetchTimingWithPerFileTimings conn commit
+    case timingMay of
+      Nothing -> raiseStatus status404 "No such commit"
+      Just (commitTime, startTime, endTime, runner, perFileTimings) ->
+        blaze $ renderCommit Commit
+          { commitHash = commit
+          , commitTime = commitTime
+          , commitRunnerId = runner
+          , commitStartTime = startTime
+          , commitEndTime = endTime
+          , perFileTimings = perFileTimings
+          }
 
   post "/next" $ do
     Api.validateSecretHeader secret
@@ -112,7 +118,7 @@ frontendMain lock timestamp secret connInfo port = scotty port $ do
        [ "runner \"", TL.fromStrict runnerId, "\" reports timing for commit "
        , TL.fromStrict (fromCommitHash commit) ]
     liftIO $ withConnection connInfo $ \conn -> do
-      Db.insertTiming conn commit startTime endTime runnerId
-      Db.insertPerFileTimings conn commit (Map.toList perFileTimings)
+      timingId <- Db.insertTiming conn commit startTime endTime runnerId
+      Db.insertPerFileTimings conn timingId (Map.toList perFileTimings)
       Db.deleteTimingInProgress conn inProgressId
     text ""

@@ -1,5 +1,8 @@
 table {
     border-collapse: collapse;
+}
+
+#timings-table {
     width: 100%;
     min-width: 800px;
 }
@@ -12,8 +15,8 @@ td, th {
     vertical-align: top;
 }
 
-.auxiliary-info {
-    font-size: 85%;
+td.per-file-time-cell {
+    text-align: right;
 }
 
 col.commit-column {
@@ -38,4 +41,8 @@ tr.timing-row-worse {
 
 tr.timing-row-better {
     background-color: lime;
+}
+
+tr.per-file-highlight {
+    background-color: lightcoral;
 }
