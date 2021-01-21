@@ -18,7 +18,7 @@ import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Encoding as TL
 import           Data.Time (UTCTime, zonedTimeToUTC)
 import           Data.Time.Format.ISO8601 (iso8601ParseM)
-import           System.Directory (doesDirectoryExist, removeDirectoryRecursive)
+import           System.Directory (doesDirectoryExist)
 import           System.Exit (exitFailure)
 
 import           MathlibBench.Command
@@ -37,11 +37,11 @@ gitInWorkdir workdir _ args = cmd "git" $ ["-C", workdir] ++ args
 setupGitRepo :: FilePath -> IO ()
 setupGitRepo workdir = do
   workDirExists <- doesDirectoryExist workdir
-  when workDirExists $ do
-    logInfo $ "removing old work directory " <> TL.pack workdir
-    removeDirectoryRecursive workdir
-  logInfo $ "cloning mathlib in " <> TL.pack workdir
-  cmd_ "git" ["clone", _GITHUB_REPO, workdir]
+  if workDirExists
+    then logInfo $ "work dir '" <> TL.pack workdir <> "' already exists"
+    else do
+      logInfo $ "cloning mathlib in " <> TL.pack workdir
+      cmd_ "git" ["clone", _GITHUB_REPO, workdir]
 
 pull :: FilePath -> GitRepoLocked -> IO ()
 pull workdir locked = gitInWorkdir_ workdir locked ["pull"]
