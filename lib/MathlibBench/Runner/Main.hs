@@ -5,7 +5,7 @@ module MathlibBench.Runner.Main (main, timeFiles) where
 
 import           Control.Concurrent (threadDelay)
 import           Control.Exception (handle)
-import           Control.Monad (void, forever)
+import           Control.Monad (forM_, void, forever)
 import           Data.Map (Map)
 import qualified Data.Map as Map
 import           Data.Text (Text)
@@ -73,10 +73,8 @@ timeFiles locked commit = do
   where
     commitT = TL.fromStrict $ fromCommitHash commit
 
-main :: IO ()
-main = do
-  (CmdArgs runnerId supervisorUrl secret) <- parseCmdArgs
-  setupLogging
+daemonMain :: DaemonCmdArgs -> IO ()
+daemonMain (DaemonCmdArgs runnerId supervisorUrl secret) = do
   Git.setupGitRepo _WORKDIR
   lock <- Git.newGitRepoLock
   forever $ handle exceptionHandler $ do
@@ -102,3 +100,29 @@ main = do
         "sleeping " <> TL.pack (show _ERROR_DELAY_SEC) <>
         "s due to previous error"
       threadDelay $ _ERROR_DELAY_SEC * 1000000
+
+oneShotMain :: OneShotCmdArgs -> IO ()
+oneShotMain (OneShotCmdArgs _ 0) = pure ()
+oneShotMain (OneShotCmdArgs commit runs) = do
+  Git.setupGitRepo _WORKDIR
+  lock <- Git.newGitRepoLock
+  forM_ [1 .. runs] $ \run -> do
+    let runText = TL.pack $ show run
+    let commitText = TL.fromStrict $ fromCommitHash commit
+    logInfo $ mconcat
+      [ "begin run ", runText, " for commit ", commitText ]
+    Git.withGitRepoLock lock $ \locked -> do
+      (startTime, endTime) <- timeBuild locked commit
+      let elapsed = diffUTCTime endTime startTime
+      logInfo $ mconcat
+        [ "end run ", runText, " for commit ", commitText ]
+      logInfo $ mconcat
+        [ "elapsed: ", TL.pack $ formatTime defaultTimeLocale "%Hh%Mm%Ss" elapsed ]
+
+main :: IO ()
+main = do
+  args <- parseCmdArgs
+  setupLogging
+  case args of
+    Daemon args -> daemonMain args
+    OneShot args -> oneShotMain args
