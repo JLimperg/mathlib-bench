@@ -110,14 +110,8 @@ oneShotMain (OneShotCmdArgs commit runs) = do
     let runText = TL.pack $ show run
     let commitText = TL.fromStrict $ fromCommitHash commit
     logInfo $ mconcat
-      [ "begin run ", runText, " for commit ", commitText ]
-    Git.withGitRepoLock lock $ \locked -> do
-      (startTime, endTime) <- timeBuild locked commit
-      let elapsed = diffUTCTime endTime startTime
-      logInfo $ mconcat
-        [ "end run ", runText, " for commit ", commitText ]
-      logInfo $ mconcat
-        [ "elapsed: ", TL.pack $ formatTime defaultTimeLocale "%Hh%Mm%Ss" elapsed ]
+      [ "starting run ", runText, " for commit ", commitText ]
+    Git.withGitRepoLock lock $ \locked -> timeBuild locked commit
 
 main :: IO ()
 main = do
