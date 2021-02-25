@@ -4,12 +4,12 @@ module MathlibBench.Supervisor.Frontend
 ( frontendMain )
 where
 
-import           Control.Monad (void, unless)
+import           Control.Monad (forM_, void, unless)
 import           Control.Monad.IO.Class (liftIO)
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map as Map
 import qualified Data.Text.Lazy as TL
-import           Data.Time.Clock (getCurrentTime, addUTCTime)
+import           Data.Time.Clock (getCurrentTime, addUTCTime, diffUTCTime)
 import           Network.HTTP.Types.Status (status404)
 import qualified Text.Blaze.Renderer.Utf8 as BlazeUtf8
 import           Text.Blaze.XHtml5 (Html)
@@ -33,6 +33,7 @@ import           MathlibBench.Supervisor.Frontend.TimingPage
   ( Timing(..), renderTimings )
 import           MathlibBench.Supervisor.GitRepo.Timestamp
   ( GitRepoTimestamp, updateGitRepoUnlessUpToDate )
+import qualified MathlibBench.Supervisor.Zulip as Zulip
 import           MathlibBench.Types
 
 updateCommits :: Connection -> GitRepoLock -> GitRepoTimestamp -> IO ()
@@ -59,9 +60,10 @@ blaze page = do
   setContentTypeHtml
   raw $ BlazeUtf8.renderMarkup page
 
-frontendMain ::
-  GitRepoLock -> GitRepoTimestamp -> Secret -> ConnectInfo -> Int -> IO ()
-frontendMain lock timestamp secret connInfo port = scotty port $ do
+frontendMain
+  :: GitRepoLock -> GitRepoTimestamp -> Secret -> ConnectInfo -> Int
+  -> Maybe Zulip.MessageMetadata -> IO ()
+frontendMain lock timestamp secret connInfo port zulipInfo = scotty port $ do
   get "/" $ do
     timings <- liftIO $ withConnection connInfo Db.fetchTimings
     blaze $ renderTimings $
@@ -121,4 +123,10 @@ frontendMain lock timestamp secret connInfo port = scotty port $ do
       timingId <- Db.insertTiming conn commit startTime endTime runnerId
       Db.insertPerFileTimings conn timingId (Map.toList perFileTimings)
       Db.deleteTimingInProgress conn inProgressId
+    forM_ zulipInfo $ \zulipInfo -> liftIO $ do
+      let timingMessage = Zulip.TimingMessage
+            { Zulip.commit = commit
+            , Zulip.elapsed = diffUTCTime endTime startTime
+            }
+      Zulip.postTimingMessage zulipInfo timingMessage
     text ""

@@ -57,6 +57,7 @@ library
                      , MathlibBench.Supervisor.Frontend.Static
                      , MathlibBench.Supervisor.Frontend.TimingPage
                      , MathlibBench.Supervisor.GitRepo.Timestamp
+                     , MathlibBench.Supervisor.Zulip
                      , MathlibBench.Types
   default-language:    Haskell2010
 
