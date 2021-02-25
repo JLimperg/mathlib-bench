@@ -22,11 +22,21 @@ data CmdArgs = CmdArgs
 
 zulipParser :: Parser Zulip.MessageMetadata
 zulipParser = do
-  instance_ <- strOption $ long "zulip"
-  user <- strOption $ long "zulip-user"
-  password <- strOption $ long "zulip-password"
-  stream <- strOption $ long "zulip-stream"
-  topic <- strOption $ long "zulip-topic"
+  instance_ <- strOption
+    $  long "zulip"
+    <> help "Zulip base URL (https://something.zulipchat.com)"
+  user <- strOption
+    $  long "zulip-user"
+    <> help "Zulip bot username."
+  password <- strOption
+    $  long "zulip-password"
+    <> help "Zulip bot password."
+  stream <- strOption
+    $  long "zulip-stream"
+    <> help "Zulip stream where builds will be posted."
+  topic <- strOption
+    $  long "zulip-topic"
+    <> help "Zulip topic where builds will be posted."
   pure $ Zulip.MessageMetadata
     { auth = Zulip.Auth { zulipInstance = instance_, .. }
     , destination = Zulip.MessageDestination {..}
@@ -34,9 +44,16 @@ zulipParser = do
 
 optsParser :: Parser CmdArgs
 optsParser = CmdArgs
-  <$> argument (maybeReader $ parseSecret . fromString) (metavar "SECRET")
-  <*> argument str (metavar "DB_PASSWORD")
-  <*> option auto (long "port" <> value _DEFAULT_PORT)
+  <$> argument (maybeReader $ parseSecret . fromString)
+        (  metavar "SECRET"
+        <> help "A secret token shared between the supervisor and runner(s)." )
+  <*> argument str
+        (  metavar "DB_PASSWORD"
+        <> help "Password for the Postgres database." )
+  <*> option auto
+        (  long "port"
+        <> value _DEFAULT_PORT
+        <> help "Port for the web interface." )
   <*> optional zulipParser
 
 programInfo :: ParserInfo CmdArgs
