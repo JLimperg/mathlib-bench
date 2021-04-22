@@ -54,6 +54,7 @@ library
                      , MathlibBench.Supervisor.Db
                      , MathlibBench.Supervisor.Frontend
                      , MathlibBench.Supervisor.Frontend.CommitPage
+                     , MathlibBench.Supervisor.Frontend.Json
                      , MathlibBench.Supervisor.Frontend.Static
                      , MathlibBench.Supervisor.Frontend.TimingPage
                      , MathlibBench.Supervisor.GitRepo.Timestamp

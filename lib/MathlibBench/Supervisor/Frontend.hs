@@ -27,6 +27,8 @@ import           MathlibBench.Supervisor.Db
   ( Connection, ConnectInfo, withConnection )
 import qualified MathlibBench.Supervisor.Db as Db
 import           MathlibBench.Supervisor.Frontend.Static (globalCss)
+import           MathlibBench.Supervisor.Frontend.Json
+  ( Build(..) )
 import           MathlibBench.Supervisor.Frontend.CommitPage
   ( Commit(..), renderCommit )
 import           MathlibBench.Supervisor.Frontend.TimingPage
@@ -75,8 +77,7 @@ frontendMain lock timestamp secret connInfo port zulipInfo = scotty port $ do
     raw $ BL.fromStrict globalCss
 
   get "/commit/:commit" $ do
-    commit' <- param "commit"
-    let commit = CommitHash commit'
+    commit <- CommitHash <$> param "commit"
     timingMay <- liftIO $ withConnection connInfo $ \conn ->
       Db.fetchTimingWithPerFileTimings conn commit
     case timingMay of
@@ -89,6 +90,22 @@ frontendMain lock timestamp secret connInfo port zulipInfo = scotty port $ do
           , commitStartTime = startTime
           , commitEndTime = endTime
           , perFileTimings = perFileTimings
+          }
+
+  get "/commit/:commit/json" $ do
+    commit <- CommitHash <$> param "commit"
+    timingMay <- liftIO $ withConnection connInfo $ \conn ->
+      Db.fetchTimingWithPerFileTimings conn commit
+    case timingMay of
+      Nothing -> raiseStatus status404 "No such commit"
+      Just (commitTime, startTime, endTime, runner, perFileTimings) ->
+        json $ Build
+          { buildCommitHash = commit
+          , buildCommitTime = commitTime
+          , buildRunnerId = runner
+          , buildStartTime = startTime
+          , buildEndTime = endTime
+          , buildPerFileTimings = Map.fromList perFileTimings
           }
 
   post "/next" $ do
