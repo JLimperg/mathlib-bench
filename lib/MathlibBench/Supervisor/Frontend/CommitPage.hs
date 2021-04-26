@@ -83,6 +83,9 @@ renderCommit Commit { ..} = docTypeHtml $ do
       string $ "Build finished: " <> formatTimestamp commitEndTime
       br
       text $ "Runner: " <> commitRunnerId
+      br
+      a ! href (stringValue $ "/commit/" ++ T.unpack commitText ++ "/json") $
+        "Timing data as JSON"
 
     h2 "Per-File Timings"
     p $ "The slowest 10% of files are highlighted in red."
