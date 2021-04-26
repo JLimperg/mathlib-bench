@@ -11,10 +11,12 @@ import qualified Data.Map as Map
 import qualified Data.Text.Lazy as TL
 import           Data.Time.Clock (getCurrentTime, addUTCTime, diffUTCTime)
 import           Network.HTTP.Types.Status (status404)
+import           Network.Wai.Middleware.Cors (simpleCors)
 import qualified Text.Blaze.Renderer.Utf8 as BlazeUtf8
 import           Text.Blaze.XHtml5 (Html)
 import           Web.Scotty
-  ( ActionM, scotty, raw, text, jsonData, get, post, json, param, raiseStatus )
+  ( middleware, ActionM, scotty, raw, text, jsonData, get, post, json, param
+  , raiseStatus )
 import qualified Web.Scotty as Scotty
 
 import qualified MathlibBench.Api as Api
@@ -66,6 +68,7 @@ frontendMain
   :: GitRepoLock -> GitRepoTimestamp -> Secret -> ConnectInfo -> Int
   -> Maybe Zulip.MessageMetadata -> IO ()
 frontendMain lock timestamp secret connInfo port zulipInfo = scotty port $ do
+  middleware simpleCors
   get "/" $ do
     timings <- liftIO $ withConnection connInfo Db.fetchTimings
     blaze $ renderTimings $

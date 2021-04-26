@@ -38,6 +38,7 @@ library
                      , time == 1.9.*
                      , typed-process == 0.2.*
                      , vector == 0.12.*
+                     , wai-cors == 0.2.*
   exposed-modules:     MathlibBench.Runner.Main
                      , MathlibBench.Supervisor.Main
   other-modules:       MathlibBench.Api
