@@ -70,7 +70,7 @@ renderCommit Commit { ..} = docTypeHtml $ do
     p $ do
       string $ "Commit time: " <> formatTimestamp commitTime
       br
-      a ! href (stringValue $ _COMMIT_BASE_URL ++ "/" ++ T.unpack commitText) $
+      a ! href (stringValue $ _COMMIT_BASE_URL ++ "/" ++ commitString) $
         "View on Github"
 
     h2 "Full Build Timing"
@@ -84,11 +84,17 @@ renderCommit Commit { ..} = docTypeHtml $ do
       br
       text $ "Runner: " <> commitRunnerId
       br
-      a ! href (stringValue $ "/commit/" ++ T.unpack commitText ++ "/json") $
+      a ! href (stringValue $ "/commit/" ++ commitString ++ "/json") $
         "Timing data as JSON"
+      br
+      a ! href
+        (stringValue $
+           "https://observablehq.com/d/30654ef5fe66acda?commit=%22" ++
+             commitString ++ "%22#chart") $
+        "Breakdown of compile times for different parts of mathlib"
 
     h2 "Per-File Timings"
-    p $ "The slowest 10% of files are highlighted in red."
+    p "The slowest 10% of files are highlighted in red."
     table $ do
       col ! class_ "file-column"
       col ! class_ "per-file-time-column"
@@ -98,6 +104,7 @@ renderCommit Commit { ..} = docTypeHtml $ do
       tbody $ mapM_ renderTiming $ mungePerFileTimings perFileTimings
   where
     commitText = fromCommitHash commitHash
+    commitString = T.unpack commitText
     fullBuildTime = diffUTCTime commitEndTime commitStartTime
 
 renderTiming :: PerFileTiming -> Html
