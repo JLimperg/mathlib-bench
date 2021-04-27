@@ -60,7 +60,7 @@ instance FromField TimeInterval where
   fromField field dat
     = TimeInterval . secondsToNominalDiffTime . MkFixed <$> fromField field dat
 
-newtype TimingId = TimingId { fromTimingId :: Int }
+newtype TimingId = TimingId { _fromTimingId :: Int }
   deriving (ToField, FromField)
 
 withConnection :: ConnectInfo -> (Connection -> IO a) -> IO a
@@ -97,9 +97,9 @@ createDb conn = do
         |, elapsed bigint not null )
         |]
 
-fetchTimings :: Connection -> IO [(CommitHash, UTCTime, UTCTime)]
+fetchTimings :: Connection -> IO [(CommitHash, UTCTime, UTCTime, UTCTime)]
 fetchTimings conn = query_ conn
-  [str|select commits.commit_hash, timings.start_time, timings.end_time
+  [str|select commits.commit_hash, commits.commit_time, timings.start_time, timings.end_time
       |from timings join commits on timings.commit_id = commits.id
       |order by commits.id desc
       |]

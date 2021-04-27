@@ -15,6 +15,7 @@ import qualified Data.Text as T
 import           Data.Time
   ( UTCTime, NominalDiffTime, nominalDiffTimeToSeconds, formatTime
   , defaultTimeLocale, diffUTCTime )
+import           Data.Time.Format.ISO8601 (iso8601Show)
 import           Text.Blaze.Html5 hiding (map)
 import           Text.Blaze.Html5.Attributes hiding (title)
 import qualified Text.Blaze.Html5.Attributes as Attr
@@ -24,6 +25,7 @@ import           MathlibBench.Types
 
 data Timing = Timing
   { timingCommit :: CommitHash
+  , timingCommitTime :: UTCTime
   , timingStartTime :: UTCTime
   , timingEndTime :: UTCTime
   }
@@ -33,6 +35,7 @@ timingElapsed t = diffUTCTime (timingEndTime t) (timingStartTime t)
 
 data TimingRow = TimingRow
   { timingRowCommit :: CommitHash
+  , timingRowCommitTime :: UTCTime
   , timingRowStartTime :: UTCTime
   , timingRowEndTime :: UTCTime
   , timingRowPreviousCommit :: Maybe CommitHash
@@ -57,6 +60,7 @@ timingsToTimingRows (t : ts) = row : timingsToTimingRows ts
 
     row = TimingRow
       { timingRowCommit = timingCommit t
+      , timingRowCommitTime = timingCommitTime t
       , timingRowStartTime = timingStartTime t
       , timingRowEndTime = timingEndTime t
       , timingRowPreviousCommit = prev <&> timingCommit
@@ -89,11 +93,12 @@ timingRowClass (Just timeRatio)
 
 renderTimingRow :: TimingRow -> Html
 renderTimingRow
-  (TimingRow currentCommit startTime endTime previousCommit
+  (TimingRow currentCommit commitTime startTime endTime previousCommit
    absoluteTimeChange relativeTimeChange)
   = tr ! class_ (timingRowClass relativeTimeChange) $
       mapM_ td
-        [ commitCell
+        [ commitTimeCell
+        , commitCell
         , elapsedTimeCell
         , absoluteTimeChangeCell
         , relativeTimeChangeCell
@@ -104,6 +109,10 @@ renderTimingRow
 
     elapsedTime :: NominalDiffTime
     elapsedTime = diffUTCTime endTime startTime
+
+    commitTimeCell :: Html
+    commitTimeCell = string $
+      iso8601Show commitTime
 
     commitCell :: Html
     commitCell = do
@@ -140,11 +149,13 @@ renderTimings' timings = docTypeHtml $ do
   body $ do
     h1 "mathlib Build Time Benchmark"
     table ! id "timings-table" $ do
+      col ! class_ "commit-time-column"
       col ! class_ "commit-column"
       col ! class_ "time-column"
       col ! class_ "time-change-absolute-column"
       col ! class_ "time-change-relative-column"
       thead $ tr $ do
+        th "Commit time"
         th "Commit"
         th "Time"
         th "Time change"

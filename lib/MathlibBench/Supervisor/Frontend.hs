@@ -72,7 +72,9 @@ frontendMain lock timestamp secret connInfo port zulipInfo = scotty port $ do
   get "/" $ do
     timings <- liftIO $ withConnection connInfo Db.fetchTimings
     blaze $ renderTimings $
-      map (\(commit, startTime, endTime) -> Timing commit startTime endTime)
+      map
+        (\(commit, commitTime, startTime, endTime) ->
+            Timing commit commitTime startTime endTime)
         timings
 
   get "/global.css" $ do
