@@ -15,7 +15,6 @@ import qualified Data.Text as T
 import           Data.Time
   ( UTCTime, NominalDiffTime, nominalDiffTimeToSeconds, formatTime
   , defaultTimeLocale, diffUTCTime )
-import           Data.Time.Format.ISO8601 (iso8601Show)
 import           Text.Blaze.Html5 hiding (map)
 import           Text.Blaze.Html5.Attributes hiding (title)
 import qualified Text.Blaze.Html5.Attributes as Attr
@@ -112,7 +111,7 @@ renderTimingRow
 
     commitTimeCell :: Html
     commitTimeCell = string $
-      iso8601Show commitTime
+      formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S" commitTime
 
     commitCell :: Html
     commitCell = do
@@ -155,7 +154,7 @@ renderTimings' timings = docTypeHtml $ do
       col ! class_ "time-change-absolute-column"
       col ! class_ "time-change-relative-column"
       thead $ tr $ do
-        th "Commit time"
+        th "Commit time (UTC)"
         th "Commit"
         th "Time"
         th "Time change"
