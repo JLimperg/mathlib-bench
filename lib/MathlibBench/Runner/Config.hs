@@ -14,7 +14,7 @@ _LEAN :: FilePath
 _LEAN = _ELAN_BINDIR </> "lean"
 
 _NUM_THREADS :: Int
-_NUM_THREADS = 16
+_NUM_THREADS = 4
 
 _MEM_LIMIT_MB :: Int
 _MEM_LIMIT_MB = 20000
