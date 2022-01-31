@@ -3,7 +3,7 @@
 
 module MathlibBench.GitRepo
 ( setupGitRepo
-, pull
+, fetch
 , checkoutCleanCommit
 , getHeadCommit
 , getAllCommits
@@ -11,7 +11,6 @@ module MathlibBench.GitRepo
 , module MathlibBench.GitRepo.Lock
 ) where
 
-import           Control.Monad (when)
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
@@ -43,8 +42,8 @@ setupGitRepo workdir = do
       logInfo $ "cloning mathlib in " <> TL.pack workdir
       cmd_ "git" ["clone", _GITHUB_REPO, workdir]
 
-pull :: FilePath -> GitRepoLocked -> IO ()
-pull workdir locked = gitInWorkdir_ workdir locked ["pull"]
+fetch :: FilePath -> GitRepoLocked -> IO ()
+fetch workdir locked = gitInWorkdir_ workdir locked ["fetch"]
 
 checkoutCleanCommit :: FilePath -> GitRepoLocked -> CommitHash -> IO ()
 checkoutCleanCommit workdir locked commit = do
@@ -76,9 +75,9 @@ handleGitLogParseFailure log = \case
 
 getHeadCommit :: FilePath -> GitRepoLocked -> IO (CommitHash, UTCTime)
 getHeadCommit workdir locked = do
-  logInfo "getting current HEAD commit"
+  logInfo "getting current HEAD commit of origin/master"
   (stdout, _) <- gitInWorkdir workdir locked
-    ["log", "-n1", "--format=" ++ gitLogFormat]
+    ["log", "-n1", "--format=" ++ gitLogFormat, "origin/master"]
   let stdoutT = TL.decodeUtf8 stdout
   (commit, commitTime) <-
     handleGitLogParseFailure stdoutT $ parseGitLogLine stdoutT
@@ -89,16 +88,16 @@ getCommits
   :: FilePath -> GitRepoLocked -> Maybe CommitHash -> IO [(CommitHash, UTCTime)]
 getCommits workdir locked origin = do
   let commitRange = case origin of
-        Nothing -> []
-        Just origin -> [T.unpack (fromCommitHash origin) ++ "..HEAD"]
+        Nothing -> "origin/master"
+        Just origin -> T.unpack (fromCommitHash origin) ++ "..origin/master"
   (stdout, _) <- gitInWorkdir workdir locked $
-    ["log", "--format=" ++ gitLogFormat, "--reverse"] ++ commitRange
+    ["log", "--format=" ++ gitLogFormat, "--reverse"] ++ [commitRange]
   let stdoutT = TL.decodeUtf8 stdout
   handleGitLogParseFailure stdoutT $ parseGitLog stdoutT
 
 getAllCommits :: FilePath -> GitRepoLocked -> IO [(CommitHash, UTCTime)]
 getAllCommits workdir locked = do
-  logInfo "getting all commits on master branch"
+  logInfo "getting all commits on origin/master"
   commits <- getCommits workdir locked Nothing
   logInfo $ "found " <> TL.pack (show (length commits)) <> " new commits"
   pure commits
@@ -106,7 +105,7 @@ getAllCommits workdir locked = do
 getCommitsFromHeadTo
   :: FilePath -> GitRepoLocked -> CommitHash -> IO [(CommitHash, UTCTime)]
 getCommitsFromHeadTo workdir locked origin = do
-  logInfo $ "getting commits from " <> TL.fromStrict origin' <> " to HEAD"
+  logInfo $ "getting commits from " <> TL.fromStrict origin' <> " to origin/master HEAD"
   newCommits <- getCommits workdir locked (Just origin)
   logInfo $ "found " <> TL.pack (show (length newCommits)) <> " new commits"
   pure newCommits

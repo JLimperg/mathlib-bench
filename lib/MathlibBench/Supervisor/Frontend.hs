@@ -45,7 +45,7 @@ updateCommits conn lock timestamp =
   Git.withGitRepoLock lock $ \locked ->
   void $ updateGitRepoUnlessUpToDate locked timestamp $ do
     logInfo "updating git repo"
-    Git.pull _WORKDIR locked
+    Git.fetch _WORKDIR locked
     currentHead <- Db.fetchLastCommit conn
     newCommits <- case currentHead of
       Nothing -> Git.getAllCommits _WORKDIR locked

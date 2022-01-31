@@ -40,7 +40,7 @@ reportTiming supervisorUrl secret timing = void $ httpNoBody $
 
 timeBuild :: GitRepoLocked -> CommitHash -> IO (UTCTime, UTCTime)
 timeBuild locked commit = do
-  Git.pull _WORKDIR locked
+  Git.fetch _WORKDIR locked
   Git.checkoutCleanCommit _WORKDIR locked commit
   logInfo $
     "starting build for commit " <> TL.fromStrict (fromCommitHash commit)
