@@ -38,6 +38,7 @@ daemonProgramInfo = info (daemonOptsParser <**> helper)
 data OneShotCmdArgs = OneShotCmdArgs
   { oneShotCmdArgsCommit :: CommitHash
   , oneShotCmdArgsRuns :: Natural
+  , oneShotCmdArgsPerFileBuild :: Bool
   }
 
 oneShotOptsParser :: Parser OneShotCmdArgs
@@ -50,6 +51,10 @@ oneShotOptsParser = OneShotCmdArgs
         <> metavar "N"
         <> value 1
         <> help "How many times the commit should be benchmarked." )
+  <*> switch
+        (  long "per-file-build"
+        <> help "Time each file individually. Requires an additional build." )
+
 
 oneShotProgramInfo :: ParserInfo OneShotCmdArgs
 oneShotProgramInfo = info (oneShotOptsParser <**> helper)

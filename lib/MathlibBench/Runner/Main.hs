@@ -1,15 +1,15 @@
 {-# LANGUAGE OverloadedStrings#-}
 
--- TODO
-module MathlibBench.Runner.Main (main, timeFiles) where
+module MathlibBench.Runner.Main (main) where
 
 import           Control.Concurrent (threadDelay)
 import           Control.Exception (handle)
-import           Control.Monad (forM_, void, forever)
+import           Control.Monad (when, forM_, void, forever)
 import           Data.Map (Map)
 import qualified Data.Map as Map
 import           Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Text.IO as T
 import qualified Data.Text.Lazy as TL
 import           Data.Time
   ( NominalDiffTime,  UTCTime, defaultTimeLocale, formatTime, getCurrentTime
@@ -102,16 +102,24 @@ daemonMain (DaemonCmdArgs runnerId supervisorUrl secret) = do
       threadDelay $ _ERROR_DELAY_SEC * 1000000
 
 oneShotMain :: OneShotCmdArgs -> IO ()
-oneShotMain (OneShotCmdArgs _ 0) = pure ()
-oneShotMain (OneShotCmdArgs commit runs) = do
+oneShotMain OneShotCmdArgs { oneShotCmdArgsRuns = 0 } = pure ()
+oneShotMain (OneShotCmdArgs commit runs doPerFileBuild) = do
   Git.setupGitRepo _WORKDIR
   lock <- Git.newGitRepoLock
+  let commitText = TL.fromStrict $ fromCommitHash commit
   forM_ [1 .. runs] $ \run -> do
     let runText = TL.pack $ show run
-    let commitText = TL.fromStrict $ fromCommitHash commit
     logInfo $ mconcat
-      [ "starting run ", runText, " for commit ", commitText ]
-    Git.withGitRepoLock lock $ \locked -> timeBuild locked commit
+      [ "run ", runText, ": starting full build for commit ", commitText ]
+    void $ Git.withGitRepoLock lock $ \locked -> timeBuild locked commit
+    when doPerFileBuild $ do
+      logInfo $ mconcat
+        [ "run ", runText, ": starting per-file build for commit ", commitText ]
+      fileTimings <- Git.withGitRepoLock lock $ \locked ->
+        timeFiles locked commit
+      forM_ (Map.toAscList fileTimings) $ \(file, elapsed) ->
+        T.putStrLn $
+          file <> " " <> T.pack (formatTime defaultTimeLocale "%-2Es" elapsed)
 
 main :: IO ()
 main = do
