@@ -1,6 +1,6 @@
 ################### Builder ###################
 
-FROM haskell:8.8.4-buster AS builder
+FROM haskell:8.10.7-buster AS builder
 WORKDIR /source
 
 # build system dependencies
@@ -22,7 +22,7 @@ RUN cp $(stack path --local-install-root)/bin/* /binaries/
 
 #################### Runner ####################
 
-FROM debian:buster-20201012 AS runner
+FROM debian:buster-20220125 AS runner
 RUN mkdir -p /mathlib-bench/runner
 RUN apt-get update && apt-get install -y git libpq-dev
 COPY docker/elan-init-0.10.2.gz /tmp/elan-init.gz
@@ -34,7 +34,7 @@ ENTRYPOINT ["/binaries/mathlib-bench-runner"]
 
 ################### Supervisor ###################
 
-FROM debian:buster-20201012 AS supervisor
+FROM debian:buster-20220125 AS supervisor
 RUN mkdir -p /mathlib-bench/supervisor
 RUN apt-get update && apt-get install -y git libpq-dev
 COPY --from=builder /binaries/mathlib-bench-supervisor /binaries/
