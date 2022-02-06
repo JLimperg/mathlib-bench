@@ -7,7 +7,7 @@ module MathlibBench.Supervisor.Db
 ( Connection
 , ConnectInfo(..)
 , withConnection
-, createDb
+, setupDatabase
 , fetchTimings
 , hasTimingForCommit
 , insertTiming
@@ -21,7 +21,7 @@ module MathlibBench.Supervisor.Db
 , fetchPerFileTimings
 , fetchTiming
 , fetchTimingWithPerFileTimings
-)where
+) where
 
 import           Control.Exception (bracket)
 import           Control.Monad (void)
@@ -41,8 +41,8 @@ import           Database.PostgreSQL.Simple.FromField (FromField(..))
 import           Database.PostgreSQL.Simple.ToField (Action(..), ToField(..))
 import           Text.Heredoc (str)
 
-import           MathlibBench.Logging
-import           MathlibBench.Types
+import           MathlibBench.Types (CommitHash)
+import           MathlibBench.Supervisor.Db.Schema (setupDatabase)
 
 -- Used to store time durations in the database since NominalDiffTime doesn't
 -- have ToField/FromField instances. A NominalDiffTime is an integer
@@ -63,39 +63,11 @@ instance FromField TimeInterval where
 newtype TimingId = TimingId { _fromTimingId :: Int }
   deriving (ToField, FromField)
 
+newtype LinesOfCode = LinesOfCode { _fromLinesOfCode :: Int }
+  deriving (ToField, FromField)
+
 withConnection :: ConnectInfo -> (Connection -> IO a) -> IO a
 withConnection connInfo = bracket (Db.connect connInfo) Db.close
-
-createDb :: Connection -> IO ()
-createDb conn = do
-  logInfo "setting up database"
-  void $ execute_ conn
-    [str|create table if not exists commits
-        |( id serial primary key
-        |, commit_hash text not null unique
-        |, commit_time timestamp with time zone not null )
-        |]
-  void $ execute_ conn
-    [str|create table if not exists timings
-        |( id serial primary key
-        |, commit_id integer not null references commits(id)
-        |, start_time timestamp with time zone not null
-        |, end_time timestamp with time zone not null
-        |, runner text not null )
-        |]
-  void $ execute_ conn
-    [str|create table if not exists inprogress
-        |( id serial primary key
-        |, commit_id integer not null references commits(id)
-        |, start_time timestamp with time zone not null )
-        |]
-  void $ execute_ conn
-    [str|create table if not exists per_file_timings
-        |( id serial primary key
-        |, timing_id integer not null references timings(id)
-        |, file text not null
-        |, elapsed bigint not null )
-        |]
 
 fetchTimings :: Connection -> IO [(CommitHash, UTCTime, UTCTime, UTCTime)]
 fetchTimings conn = query_ conn

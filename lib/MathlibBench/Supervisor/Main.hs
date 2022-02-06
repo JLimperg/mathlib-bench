@@ -10,7 +10,8 @@ import           MathlibBench.Logging
 import           MathlibBench.Supervisor.CmdArgs
 import           MathlibBench.Supervisor.Config
   (_ROOTDIR, _WORKDIR, _DATABASE_CONNECTION_INFO )
-import           MathlibBench.Supervisor.Db (ConnectInfo(..), withConnection, createDb)
+import           MathlibBench.Supervisor.Db
+  ( ConnectInfo(..), withConnection, setupDatabase )
 import           MathlibBench.Supervisor.Frontend (frontendMain)
 import           MathlibBench.Supervisor.GitRepo.Timestamp (newGitRepoTimestamp)
 
@@ -22,7 +23,7 @@ main = do
   logInfo "====== mathlib-bench starting ======"
   logInfo $ "creating root directory " <> TL.pack _ROOTDIR
   createDirectoryIfMissing True _ROOTDIR
-  withConnection connInfo createDb
+  withConnection connInfo setupDatabase
   setupGitRepo _WORKDIR
   gitRepoLock <- newGitRepoLock
   gitRepoTimestamp <- newGitRepoTimestamp
