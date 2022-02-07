@@ -19,14 +19,18 @@ td.per-file-time-cell {
     text-align: right;
 }
 
+td.per-file-loc-cell {
+    text-aling: right;
+}
+
+td.per-file-time-per-loc-cell {
+    text-aling: right;
+}
+
 tr.timing-row-worse {
     background-color: lightcoral;
 }
 
 tr.timing-row-better {
     background-color: lime;
-}
-
-tr.per-file-highlight {
-    background-color: lightcoral;
 }

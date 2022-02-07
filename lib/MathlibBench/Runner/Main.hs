@@ -4,7 +4,7 @@ module MathlibBench.Runner.Main (main) where
 
 import           Control.Concurrent (threadDelay)
 import           Control.Exception (handle)
-import           Control.Monad (when, forM_, void, forever)
+import           Control.Monad (when, forM, forM_, void, forever)
 import           Data.Map (Map)
 import qualified Data.Map as Map
 import           Data.Text (Text)
@@ -27,6 +27,7 @@ import qualified MathlibBench.GitRepo as Git
 import           MathlibBench.Logging
 import           MathlibBench.Runner.CmdArgs
 import           MathlibBench.Runner.Config
+import           MathlibBench.Runner.LinesOfCode (countLinesOfCode)
 import           MathlibBench.Secret (Secret)
 import           MathlibBench.Types
 
@@ -55,19 +56,23 @@ timeBuild locked commit = do
     TL.pack (formatTime defaultTimeLocale "%Hh%Mm%Ss" timeDiff)
   pure (startTime, endTime)
 
-timeFile :: GitRepoLocked -> FilePath -> IO (Text, NominalDiffTime)
-timeFile _ file = do
+timeFile :: GitRepoLocked -> FilePath -> IO (Text, NominalDiffTime, LinesOfCode)
+timeFile _ fileRelativeToSrc = do
+  let file = "src" </> fileRelativeToSrc
   startTime <- getCurrentTime
-  cmd_ _LEAN ["-j0", "src" </> file]
+  cmd_ _LEAN ["-j0", file]
   endTime <- getCurrentTime
-  pure (T.pack file, diffUTCTime endTime startTime)
+  loc <- countLinesOfCode file
+  pure (T.pack fileRelativeToSrc, diffUTCTime endTime startTime, loc)
 
-timeFiles :: GitRepoLocked -> CommitHash -> IO (Map Text NominalDiffTime)
+timeFiles :: GitRepoLocked -> CommitHash -> IO (Map Text (NominalDiffTime, LinesOfCode))
 timeFiles locked commit = do
   logInfo $ "starting per-file build for commit " <> commitT
   timings <- withCurrentDirectory _WORKDIR $ do
     leanFiles <- getDirectoryFiles "src" ["**/*.lean"]
-    Map.fromList <$> mapM (timeFile locked) leanFiles
+    fmap Map.fromList $ forM leanFiles $ \file -> do
+      (fileT, elapsed, loc) <- timeFile locked file
+      pure (fileT, (elapsed, loc))
   logInfo $ "finished per-file build for commit " <> commitT
   pure timings
   where
@@ -89,7 +94,7 @@ daemonMain (DaemonCmdArgs runnerId supervisorUrl secret) = do
             pure (startTime, endTime, perFileTimings)
         reportTiming supervisorUrl secret $
           Api.FinishedTiming commit inProgressId startTime endTime runnerId
-            perFileTimings
+            (Map.map (uncurry Api.FinishedPerFileTiming) perFileTimings)
   where
     -- TODO catch JSONException as well?
     exceptionHandler :: HttpException -> IO ()
@@ -117,9 +122,11 @@ oneShotMain (OneShotCmdArgs commit runs doPerFileBuild) = do
         [ "run ", runText, ": starting per-file build for commit ", commitText ]
       fileTimings <- Git.withGitRepoLock lock $ \locked ->
         timeFiles locked commit
-      forM_ (Map.toAscList fileTimings) $ \(file, elapsed) ->
+      forM_ (Map.toAscList fileTimings) $ \(file, (elapsed, loc)) ->
         T.putStrLn $
-          file <> " " <> T.pack (formatTime defaultTimeLocale "%-2Es" elapsed)
+          file <> " " <>
+          T.pack (formatTime defaultTimeLocale "%-2Es" elapsed) <> " " <>
+          T.pack (show $ fromLinesOfCode loc)
 
 main :: IO ()
 main = do

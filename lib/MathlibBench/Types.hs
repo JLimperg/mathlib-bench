@@ -9,3 +9,6 @@ import           Database.PostgreSQL.Simple.ToField (ToField(..))
 
 newtype CommitHash = CommitHash { fromCommitHash :: Text }
   deriving (FromField, ToField, FromJSON, ToJSON)
+
+newtype LinesOfCode = LinesOfCode { fromLinesOfCode :: Int }
+  deriving (FromField, ToField, FromJSON, ToJSON)

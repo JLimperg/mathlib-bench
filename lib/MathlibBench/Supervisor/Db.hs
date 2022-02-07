@@ -41,7 +41,7 @@ import           Database.PostgreSQL.Simple.FromField (FromField(..))
 import           Database.PostgreSQL.Simple.ToField (Action(..), ToField(..))
 import           Text.Heredoc (str)
 
-import           MathlibBench.Types (CommitHash)
+import           MathlibBench.Types (CommitHash, LinesOfCode)
 import           MathlibBench.Supervisor.Db.Schema (setupDatabase)
 
 -- Used to store time durations in the database since NominalDiffTime doesn't
@@ -61,9 +61,6 @@ instance FromField TimeInterval where
     = TimeInterval . secondsToNominalDiffTime . MkFixed <$> fromField field dat
 
 newtype TimingId = TimingId { _fromTimingId :: Int }
-  deriving (ToField, FromField)
-
-newtype LinesOfCode = LinesOfCode { _fromLinesOfCode :: Int }
   deriving (ToField, FromField)
 
 withConnection :: ConnectInfo -> (Connection -> IO a) -> IO a
@@ -147,22 +144,34 @@ pruneTimingsInProgress conn timeout = void $ execute conn
   (Only timeout)
 
 insertPerFileTimings
-  :: Connection -> TimingId -> [(Text, NominalDiffTime)] -> IO ()
+  :: Connection -> TimingId -> [(Text, NominalDiffTime, LinesOfCode)] -> IO ()
 insertPerFileTimings conn timingId timings = void $ executeMany conn
-  [str|insert into per_file_timings (timing_id, file, elapsed)
-      |values (?, ?, ?)
+  [str|insert into per_file_timings (timing_id, file, elapsed, lines_of_code)
+      |values (?, ?, ?, ?)
       |]
-  (map (\(file, elapsed) -> (timingId, file, elapsed))
-      (coerce timings :: [(Text, TimeInterval)]))
+  (map (\(file, elapsed, loc) -> (timingId, file, elapsed, loc))
+      (coerce timings :: [(Text, TimeInterval, LinesOfCode)]))
 
-fetchPerFileTimings :: Connection -> TimingId -> IO [(Text, NominalDiffTime)]
+-- Returns file name, total compilation time for this file, lines of code (if
+-- available) and elapsed time per LOC, i.e. `elapsed / lines_of_code` (if
+-- `lines_of_code` is available). Ordered by elapsed time per LOC, highest
+-- first.
+fetchPerFileTimings
+  :: Connection -> TimingId
+  -> IO [(Text, NominalDiffTime, Maybe LinesOfCode, Maybe NominalDiffTime)]
 fetchPerFileTimings conn timingId = do
-  results :: [(Text, TimeInterval)] <- query conn
-    [str|select file, elapsed
-        |from per_file_timings
-        |where timing_id = ?
-        |order by per_file_timings.file
-        |]
+  results :: [(Text, TimeInterval, Maybe LinesOfCode, Maybe TimeInterval)] <-
+    query conn
+      [str|select file, elapsed, lines_of_code,
+          |  case
+          |    when lines_of_code is null
+          |    then null
+          |    else elapsed / lines_of_code
+          |  end as elapsedPerLoc
+          |from per_file_timings
+          |where timing_id = ?
+          |order by elapsedPerLoc desc nulls last, per_file_timings.file asc
+          |]
     (Only timingId)
   pure $ coerce results
 
@@ -181,7 +190,9 @@ fetchTiming conn commit = listToMaybe <$>
 
 fetchTimingWithPerFileTimings
   :: Connection -> CommitHash
-  -> IO (Maybe (UTCTime, UTCTime, UTCTime, Text, [(Text, NominalDiffTime)]))
+  -> IO (Maybe
+         (UTCTime, UTCTime, UTCTime, Text,
+          [(Text, NominalDiffTime, Maybe LinesOfCode, Maybe NominalDiffTime)]))
 fetchTimingWithPerFileTimings conn commit = do
   timingMay <- fetchTiming conn commit
   case timingMay of

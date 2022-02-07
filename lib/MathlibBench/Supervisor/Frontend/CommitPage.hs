@@ -26,32 +26,10 @@ data Commit = Commit
   , commitRunnerId :: Text
   , commitStartTime :: UTCTime
   , commitEndTime :: UTCTime
-  , perFileTimings :: [(Text, NominalDiffTime)]
+  , perFileTimings ::
+      [(Text, NominalDiffTime, Maybe LinesOfCode, Maybe NominalDiffTime)]
+      -- We assume that these are already ordered in whatever order is desired.
   }
-
-data PerFileTiming = PerFileTiming
-  { perFileTimingFilename :: Text
-  , perFileTimingElapsed :: NominalDiffTime
-  , perFileTimingHighlight :: Bool
-  }
-
-quantile :: (Ord a) => Double -> NonEmpty a -> a
-quantile q as
-  = let count = length as in
-    NonEmpty.sort as NonEmpty.!! floor (fromIntegral count * q)
-
-mungePerFileTimings :: [(Text, NominalDiffTime)] -> [PerFileTiming]
-mungePerFileTimings [] = []
-mungePerFileTimings timings@(t : ts)
-  = let topTenPercent = quantile 0.9 $ fmap snd (t :| ts) in
-    map (go topTenPercent) timings
-  where
-    go :: NominalDiffTime -> (Text, NominalDiffTime) -> PerFileTiming
-    go highlightTime (file, time) = PerFileTiming
-      { perFileTimingFilename = file
-      , perFileTimingElapsed = time
-      , perFileTimingHighlight = time >= highlightTime
-      }
 
 formatTimestamp :: UTCTime -> String
 formatTimestamp = formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S %Z"
@@ -94,24 +72,33 @@ renderCommit Commit { ..} = docTypeHtml $ do
         "Breakdown of compile times for different parts of mathlib"
 
     h2 "Per-File Timings"
-    p "The slowest 10% of files are highlighted in red."
     table $ do
       col ! class_ "file-column"
       col ! class_ "per-file-time-column"
+      col ! class_ "per-file-loc-column"
+      col ! class_ "per-file-time-per-loc-column"
       thead $ tr $ do
         th "File"
-        th "Time (s)"
-      tbody $ mapM_ renderTiming $ mungePerFileTimings perFileTimings
+        th "Time (sec)"
+        th "LOC"
+        th "sec/LOC"
+      tbody $ mapM_ renderTiming perFileTimings
   where
     commitText = fromCommitHash commitHash
     commitString = T.unpack commitText
     fullBuildTime = diffUTCTime commitEndTime commitStartTime
 
-renderTiming :: PerFileTiming -> Html
-renderTiming (PerFileTiming file elapsed highlight) = tr ! highlightAttr $ do
+renderTiming
+  :: (Text, NominalDiffTime, Maybe LinesOfCode, Maybe NominalDiffTime) -> Html
+renderTiming (file, elapsed, locM, elapsedPerLocM) = tr $ do
   td $ text file
   td ! class_ "per-file-time-cell" $ string $
     formatTime defaultTimeLocale "%-2Es" elapsed
-  where
-    highlightAttr :: Attribute
-    highlightAttr = if highlight then class_ "per-file-highlight" else mempty
+  td ! class_ "per-file-loc-cell" $
+    case locM of
+      Just loc -> string $ show $ fromLinesOfCode loc
+      Nothing -> "?"
+  td ! class_ "per-file-time-per-loc-cell" $ string $
+    case elapsedPerLocM of
+      Just elapsedPerLoc -> formatTime defaultTimeLocale "%-6Es" elapsedPerLoc
+      Nothing -> "?"

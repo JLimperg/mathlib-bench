@@ -30,7 +30,7 @@ import           MathlibBench.Supervisor.Db
 import qualified MathlibBench.Supervisor.Db as Db
 import           MathlibBench.Supervisor.Frontend.Static (globalCss)
 import           MathlibBench.Supervisor.Frontend.Json
-  ( Build(..) )
+  ( Build(..), PerFileTiming(..) )
 import           MathlibBench.Supervisor.Frontend.CommitPage
   ( Commit(..), renderCommit )
 import           MathlibBench.Supervisor.Frontend.TimingPage
@@ -110,7 +110,10 @@ frontendMain lock timestamp secret connInfo port zulipInfo = scotty port $ do
           , buildRunnerId = runner
           , buildStartTime = startTime
           , buildEndTime = endTime
-          , buildPerFileTimings = Map.fromList perFileTimings
+          , buildPerFileTimings = Map.fromList $
+              map (\(file, elapsed, loc, elapsedPerLoc) ->
+                     (file, PerFileTiming elapsed loc elapsedPerLoc))
+                perFileTimings
           }
 
   post "/next" $ do
@@ -143,7 +146,10 @@ frontendMain lock timestamp secret connInfo port zulipInfo = scotty port $ do
        , TL.fromStrict (fromCommitHash commit) ]
     liftIO $ withConnection connInfo $ \conn -> do
       timingId <- Db.insertTiming conn commit startTime endTime runnerId
-      Db.insertPerFileTimings conn timingId (Map.toList perFileTimings)
+      let perFileTimings' =
+            map (\(file, Api.FinishedPerFileTiming elapsed loc) -> (file, elapsed, loc)) $
+            Map.toList perFileTimings
+      Db.insertPerFileTimings conn timingId perFileTimings'
       Db.deleteTimingInProgress conn inProgressId
     forM_ zulipInfo $ \zulipInfo -> liftIO $ do
       let timingMessage = Zulip.TimingMessage

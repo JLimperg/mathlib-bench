@@ -6,6 +6,7 @@ module MathlibBench.Api
 , validateSecretHeader
 , NextCommit(..)
 , FinishedTiming(..)
+, FinishedPerFileTiming(..)
 ) where
 
 import           Control.Monad (unless)
@@ -23,7 +24,7 @@ import qualified Web.Scotty as Scotty
 
 import           MathlibBench.Config (_SECRET_HEADER)
 import           MathlibBench.Secret (Secret, secretToLazyText, fromSecret)
-import           MathlibBench.Types (CommitHash)
+import           MathlibBench.Types (CommitHash, LinesOfCode)
 
 setSecretHeader :: Secret -> Request -> Request
 setSecretHeader secret
@@ -70,13 +71,31 @@ instance ToJSON NextCommit where
     "commit" .= commit <>
     "inProgressId" .= inProgressId
 
+data FinishedPerFileTiming = FinishedPerFileTiming
+  { finishedPerFileTimingElapsed :: NominalDiffTime
+  , finishedPerFileTimingLinesOfCode :: LinesOfCode
+  }
+
+instance FromJSON FinishedPerFileTiming where
+    parseJSON = withObject "FinishedPerFileTiming" $ \v -> FinishedPerFileTiming
+      <$> v .: "elapsed"
+      <*> v .: "linesOfCode"
+
+instance ToJSON FinishedPerFileTiming where
+  toJSON (FinishedPerFileTiming elapsed loc) = object
+    [ ("elapsed", toJSON elapsed)
+    , ("linesOfCode", toJSON loc) ]
+  toEncoding (FinishedPerFileTiming elapsed loc) = pairs $
+    "elapsed" .= elapsed <>
+    "linesOfCode" .= loc
+
 data FinishedTiming = FinishedTiming
   { finishedTimingCommit :: CommitHash
   , finishedTimingInProgressId :: Int
   , finishedTimingStartTime :: UTCTime
   , finishedTimingEndTime :: UTCTime
   , finishedTimingRunnerId :: Text
-  , finishedTimingPerFileTimings :: Map Text NominalDiffTime
+  , finishedTimingPerFileTimings :: Map Text FinishedPerFileTiming
   }
 
 instance FromJSON FinishedTiming where
@@ -95,7 +114,7 @@ instance ToJSON FinishedTiming where
     , ("startTime", toJSON startTime)
     , ("endTime", toJSON endTime)
     , ("runnerId", toJSON runnerId)
-    , ("perFileTimings", toJSON perFileTimings)]
+    , ("perFileTimings", toJSON perFileTimings) ]
   toEncoding (FinishedTiming commit inProgressId startTime endTime runnerId perFileTimings) = pairs $
     "commit" .= commit <>
     "inProgressId" .= inProgressId <>

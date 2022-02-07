@@ -49,6 +49,7 @@ library
                      , MathlibBench.Logging
                      , MathlibBench.Runner.CmdArgs
                      , MathlibBench.Runner.Config
+                     , MathlibBench.Runner.LinesOfCode
                      , MathlibBench.Secret
                      , MathlibBench.Supervisor.CmdArgs
                      , MathlibBench.Supervisor.Config
